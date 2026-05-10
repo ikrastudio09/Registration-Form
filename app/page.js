@@ -7,7 +7,7 @@ import TournamentHeader from "../components/TournamentHeader";
 import RegistrationForm from '../components/RegistrationForm';
 
 export const metadata = {
-  title: 'Player Registration | Cricket Tournament 2025',
+  title: 'Player Registration | Crazy Cricket League 2026',
   description: 'Register for the ultimate cricket tournament. Fill in your details and join the league of champions.',
 };
 
