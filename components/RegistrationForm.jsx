@@ -321,6 +321,72 @@ rgba(231,111,6,1) 100%
             />
           </FormSection>
 
+          {/* Tournament Notes */}
+          <div
+            className="rounded-2xl p-5 flex flex-col gap-3"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "inset 0 0 20px rgba(0,0,0,0.25)",
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{
+                  background: "rgba(245,158,11,0.12)",
+                  border: "1px solid rgba(245,158,11,0.2)",
+                }}
+              >
+                📢
+              </div>
+
+              <h3
+                className="text-sm font-bold tracking-widest uppercase"
+                style={{
+                  color: "#fbbf24",
+                  fontFamily: "var(--font-display)",
+                }}
+              >
+                Important Notes
+              </h3>
+            </div>
+
+            {/* Notes */}
+            <div
+              className="text-sm leading-7 flex flex-col gap-2"
+              style={{
+                color: "rgba(232,245,233,0.72)",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              <p>
+                <span style={{ color: "#fbbf24" }}>•</span> Auction dates,
+                tournament rules and match schedules will be communicated later
+                in the official WhatsApp group.
+              </p>
+
+              <p>
+                <span style={{ color: "#fbbf24" }}>•</span> Everything will be
+                informed before the auction so teams can prepare strategies
+                accordingly.
+              </p>
+
+              <p>
+                <span style={{ color: "#fbbf24" }}>•</span> Registration/payment
+                once completed will be strictly non-refundable under any
+                circumstances.
+              </p>
+
+              <p>
+                <span style={{ color: "#fbbf24" }}>•</span> Any invalid
+                information or fake payment proof may result in direct
+                disqualification from the tournament.
+              </p>
+            </div>
+          </div>
+
           {/* Submit Button */}
           <div className="pt-2">
             <button
@@ -377,6 +443,9 @@ rgba(231,111,6,1) 100%
             >
               By registering, you confirm all information is accurate and
               payment has been completed.
+              <br />
+              By Registering You also abide to all rules and regulations of the
+              Crazy Cricket League 2026.
             </p>
           </div>
         </form>

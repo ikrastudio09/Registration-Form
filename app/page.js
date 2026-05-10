@@ -50,10 +50,7 @@ export default function RegisterPage() {
             <div className="h-px w-16" style={{ background: 'rgba(255,255,255,0.1)' }} />
           </div>
           <p className="text-xs" style={{ color: 'var(--color-text-dim)' }}>
-            Cricket Tournament 2025 · All rights reserved
-          </p>
-          <p className="text-xs mt-1" style={{ color: 'rgba(232,245,233,0.2)' }}>
-            For queries contact: tournament@email.com
+            Crazy Cricket League 2026· All rights reserved
           </p>
         </footer>
       </div>
