@@ -3,11 +3,16 @@
  * Mongoose model for cricket tournament player registrations
  */
 import mongoose from 'mongoose';
+import PlayerCounter from './PlayerCounter';
 
 const PlayerSchema = new mongoose.Schema(
   {
+    playerID: {
+      type: Number,
+      unique: true
+    },
     // Player's full name
-    name: {
+    playerName: {
       type: String,
       required: [true, 'Full name is required'],
       trim: true,
@@ -16,10 +21,15 @@ const PlayerSchema = new mongoose.Schema(
     },
 
     // Indian mobile number (10 digits)
-    mobile: {
+    playerPhone: {
       type: String,
       required: [true, 'Mobile number is required'],
       match: [/^[6-9]\d{9}$/, 'Please enter a valid Indian mobile number'],
+    },
+
+    Age: {
+      type: Number,
+      required: true
     },
 
     // Player photo stored in Cloudinary
@@ -51,13 +61,25 @@ const PlayerSchema = new mongoose.Schema(
     },
 
     // Player role in the team
-    role: {
+    playerType: {
       type: String,
       required: [true, 'Player role is required'],
       enum: {
         values: ['Batsman', 'Bowler', 'All Rounder'],
         message: '{VALUE} is not a valid role',
       },
+    },
+
+    previousTeam: {
+      type: String  
+    },
+
+    playerPool: {
+      type: Number,
+    },
+
+    playerCategory:{
+      type: String
     },
 
     // Payment screenshot stored in Cloudinary
@@ -94,9 +116,24 @@ const PlayerSchema = new mongoose.Schema(
   }
 );
 
+
+PlayerSchema.pre("save", async function (next) {
+  if (this.isNew) {
+    const counter = await PlayerCounter.findOneAndUpdate(
+      { id: "playerID" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.playerID = counter.seq;
+  }
+  next();
+});
+
+
+
 // Index for faster queries
 PlayerSchema.index({ transactionId: 1 }, { unique: true });
-PlayerSchema.index({ mobile: 1 });
+PlayerSchema.index({ playerPhone: 1 });
 PlayerSchema.index({ status: 1 });
 PlayerSchema.index({ createdAt: -1 });
 

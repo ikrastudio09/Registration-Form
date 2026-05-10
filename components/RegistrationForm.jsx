@@ -14,6 +14,8 @@ import SuccessModal from "./SuccessModal";
 const INITIAL_STATE = {
   name: "",
   mobile: "",
+  previousTeam: "",
+  Age: "",
   playerPhotoBase64: "",
   playingStyle: [],
   role: "",
@@ -170,7 +172,7 @@ rgba(0,170,255,1) 0%,
 rgba(255,183,0,1) 50%,
 rgba(231,111,6,1) 100%
 )
-`
+`,
           }}
         />
 
@@ -238,6 +240,30 @@ rgba(231,111,6,1) 100%
               icon="📱"
               maxLength={10}
               hint="Indian mobile numbers only (starting with 6, 7, 8 or 9)"
+            />
+
+            <InputField
+              label="Player Age"
+              name="Age"
+              type="Number"
+              value={form.Age}
+              onChange={handleChange("Age")}
+              placeholder="Enter your Age"
+              required
+              error={errors.Age}
+              icon="✍️"
+              data-error={!!errors.Age}
+            />
+
+            <InputField
+              label="Previous Team"
+              name="previousTeam"
+              value={form.previousTeam}
+              onChange={handleChange("previousTeam")}
+              placeholder="Enter your previous team if any"
+              error={errors.previousTeam}
+              icon="✍️"
+              data-error={!!errors.previousTeam}
             />
           </FormSection>
 

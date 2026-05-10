@@ -3,16 +3,19 @@
  * Player registration endpoint
  * Handles image uploads to Cloudinary and saves player data to MongoDB
  */
-import connectDB from '../../../lib/mongodb';
-import Player from '../../../models/Player';
-import { uploadPlayerPhoto, uploadPaymentScreenshot } from '../../../lib/cloudinary';
+import connectDB from "../../../lib/mongodb";
+import Player from "../../../models/Player";
+import {
+  uploadPlayerPhoto,
+  uploadPaymentScreenshot,
+} from "../../../lib/cloudinary";
 import {
   successResponse,
   errorResponse,
   parseMongooseErrors,
   validateRequiredFields,
   validateMobile,
-} from '../../../utils/apiHelpers';
+} from "../../../utils/apiHelpers";
 
 export async function POST(request) {
   try {
@@ -27,20 +30,23 @@ export async function POST(request) {
       mobile,
       playerPhotoBase64,
       playingStyle,
+      Age,
       role,
       paymentScreenshotBase64,
       transactionId,
+      previousTeam,
     } = body;
 
     // --- Validate required fields ---
     const requiredFields = [
-      'name',
-      'mobile',
-      'playerPhotoBase64',
-      'playingStyle',
-      'role',
-      'paymentScreenshotBase64',
-      'transactionId',
+      "name",
+      "mobile",
+      "playerPhotoBase64",
+      "playingStyle",
+      "role",
+      "Age",
+      "paymentScreenshotBase64",
+      "transactionId",
     ];
     const missingError = validateRequiredFields(body, requiredFields);
     if (missingError) {
@@ -49,26 +55,38 @@ export async function POST(request) {
 
     // Validate mobile number
     if (!validateMobile(mobile)) {
-      return errorResponse('Invalid Indian mobile number. Must be 10 digits starting with 6-9.', 400);
+      return errorResponse(
+        "Invalid Indian mobile number. Must be 10 digits starting with 6-9.",
+        400,
+      );
     }
 
     // Validate playing styles count
-    if (!Array.isArray(playingStyle) || playingStyle.length === 0 || playingStyle.length > 2) {
-      return errorResponse('Select 1 to 2 playing styles.', 400);
+    if (
+      !Array.isArray(playingStyle) ||
+      playingStyle.length === 0 ||
+      playingStyle.length > 2
+    ) {
+      return errorResponse("Select 1 to 2 playing styles.", 400);
     }
 
     // Validate role
-    const validRoles = ['Batsman', 'Bowler', 'All Rounder'];
+    const validRoles = ["Batsman", "Bowler", "All Rounder"];
     if (!validRoles.includes(role)) {
-      return errorResponse(`Invalid role. Must be one of: ${validRoles.join(', ')}`, 400);
+      return errorResponse(
+        `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+        400,
+      );
     }
 
     // Check for duplicate transaction ID before uploading images
-    const existingPlayer = await Player.findOne({ transactionId: transactionId.toUpperCase() });
+    const existingPlayer = await Player.findOne({
+      transactionId: transactionId.toUpperCase(),
+    });
     if (existingPlayer) {
       return errorResponse(
         `Transaction ID "${transactionId}" is already registered. Please use a unique transaction ID.`,
-        409
+        409,
       );
     }
 
@@ -85,42 +103,49 @@ export async function POST(request) {
     }
 
     // --- Save player to MongoDB ---
-    const player = await Player.create({
-      name: name.trim(),
-      mobile,
+    const player = new Player({
+      playerName: name.trim(),
+      playerPhone: mobile,
+      Age,
       playerPhoto: playerPhotoData,
       playingStyle,
-      role,
+      playerType: role,
+      previousTeam,
       paymentScreenshot: paymentScreenshotData,
       transactionId: transactionId.trim().toUpperCase(),
-      status: 'pending',
+      status: "pending",
+      playerCategory: "Undefined",
+      playerPool: 0,
     });
+
+    await player.save();
 
     // Return success with player data (excluding sensitive image public IDs)
     return successResponse(
       {
         id: player._id,
-        name: player.name,
-        mobile: player.mobile,
+        name: player.playerName,
+        mobile: player.playerPhone,
         playerPhoto: player.playerPhoto.url,
         playingStyle: player.playingStyle,
-        role: player.role,
+        role: player.playerType,
+        Age: player.Age,
         transactionId: player.transactionId,
         status: player.status,
         createdAt: player.createdAt,
       },
-      'Registration successful! Your application is under review.',
-      201
+      "Registration successful! Your application is under review.",
+      201,
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error("Registration error:", error);
 
     // Handle Mongoose errors
-    if (error.name === 'ValidationError' || error.code === 11000) {
+    if (error.name === "ValidationError" || error.code === 11000) {
       const parsed = parseMongooseErrors(error);
       return errorResponse(parsed.message, parsed.status, parsed.errors);
     }
 
-    return errorResponse('Registration failed. Please try again.', 500);
+    return errorResponse("Registration failed. Please try again.", 500);
   }
 }
