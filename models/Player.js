@@ -39,7 +39,7 @@ const PlayerSchema = new mongoose.Schema(
       type: [String],
       required: [true, 'At least one playing style is required'],
       enum: {
-        values: ['Batting', 'Bowling', 'Wicket Keeping', 'Fielding Specialist'],
+        values: ['Right Arm Batting', 'Right Arm Balling', 'Left Arm Batting', 'Left Arm Balling'],
         message: '{VALUE} is not a valid playing style',
       },
       validate: {
