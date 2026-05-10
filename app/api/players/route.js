@@ -2,10 +2,9 @@
  * GET /api/players
  * Fetch all registered players with pagination and filtering
  */
-import connectDB from '@/lib/mongodb';
-import Player from '@/models/Player';
-import { successResponse, errorResponse } from '@/utils/apiHelpers';
-
+import connectDB from '../../../lib/mongodb';
+import Player from '../../../models/Player';
+import { successResponse, errorResponse } from '../../../utils/apiHelpers';
 export async function GET(request) {
   try {
     await connectDB();
