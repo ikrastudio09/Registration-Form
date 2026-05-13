@@ -1,8 +1,3 @@
-/**
- * POST /api/register
- * Player registration endpoint
- * Handles image uploads to Cloudinary and saves player data to MongoDB
- */
 import connectDB from "../../../lib/mongodb";
 import Player from "../../../models/Player";
 import {
@@ -23,35 +18,44 @@ export async function POST(request) {
     await connectDB();
 
     // Parse request body
-    const body = await request.json();
+    const formData = await request.formData();
 
-    const {
-      name,
-      mobile,
-      playerPhotoBase64,
-      playingStyle,
-      Age,
-      role,
-      paymentScreenshotBase64,
-      transactionId,
-      previousTeam,
-    } = body;
+    const name = formData.get("name");
+    const mobile = formData.get("mobile");
+    const Age = formData.get("Age");
+    const role = formData.get("role");
+    const transactionId = formData.get("transactionId");
+    const previousTeam = formData.get("previousTeam");
+
+    const playingStyle = JSON.parse(formData.get("playingStyle"));
+
+    const playerPhoto = formData.get("playerPhoto");
+
+    const paymentScreenshot = formData.get("paymentScreenshot");
 
     // --- Validate required fields ---
     const requiredFields = [
       "name",
       "mobile",
-      "playerPhotoBase64",
+      "playerPhoto",
       "playingStyle",
       "role",
       "Age",
-      "paymentScreenshotBase64",
+      "paymentScreenshot",
       "transactionId",
     ];
+    const body = {
+      name,
+      mobile,
+      playerPhoto,
+      playingStyle,
+      role,
+      Age,
+      paymentScreenshot,
+      transactionId,
+    };
+
     const missingError = validateRequiredFields(body, requiredFields);
-    if (missingError) {
-      return errorResponse(missingError, 400);
-    }
 
     // Validate mobile number
     if (!validateMobile(mobile)) {
@@ -95,8 +99,8 @@ export async function POST(request) {
 
     try {
       [playerPhotoData, paymentScreenshotData] = await Promise.all([
-        uploadPlayerPhoto(playerPhotoBase64),
-        uploadPaymentScreenshot(paymentScreenshotBase64),
+        uploadPlayerPhoto(playerPhoto),
+        uploadPaymentScreenshot(paymentScreenshot),
       ]);
     } catch (uploadError) {
       return errorResponse(`Image upload failed: ${uploadError.message}`, 500);

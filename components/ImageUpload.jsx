@@ -32,15 +32,11 @@ export default function ImageUpload({
 
     // Validate file size (max 5MB)
     if (file.size > 1 * 1024 * 1024) {
-      onImageSelect(null, 'Image size must be under 5MB.');
+      onImageSelect(null, 'Image size must be under 1MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      onImageSelect(e.target.result, null);
-    };
-    reader.readAsDataURL(file);
+    onImageSelect(file, null);
   };
 
   const handleInputChange = (e) => {

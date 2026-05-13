@@ -16,10 +16,10 @@ const INITIAL_STATE = {
   mobile: "",
   previousTeam: "",
   Age: "",
-  playerPhotoBase64: "",
+  playerPhoto: null,
   playingStyle: [],
   role: "",
-  paymentScreenshotBase64: "",
+  paymentScreenshot: null,
   transactionId: "",
 };
 
@@ -41,8 +41,8 @@ export default function RegistrationForm() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const handleImageSelect = (field) => (base64, error) => {
-    setForm((prev) => ({ ...prev, [field]: base64 || "" }));
+  const handleImageSelect = (field) => (file, error) => {
+    setForm((prev) => ({ ...prev, [field]: file || null }));
     setErrors((prev) => ({ ...prev, [field]: error || "" }));
   };
 
@@ -71,8 +71,7 @@ export default function RegistrationForm() {
       newErrors.mobile = "Enter a valid 10-digit Indian mobile number";
     }
 
-    if (!form.playerPhotoBase64)
-      newErrors.playerPhotoBase64 = "Player photo is required";
+    if (!form.playerPhoto) newErrors.playerPhoto = "Player photo is required";
 
     if (form.playingStyle.length === 0) {
       newErrors.playingStyle = "Select at least 1 playing style";
@@ -82,8 +81,8 @@ export default function RegistrationForm() {
 
     if (!form.role) newErrors.role = "Player role is required";
 
-    if (!form.paymentScreenshotBase64)
-      newErrors.paymentScreenshotBase64 = "Payment screenshot is required";
+    if (!form.paymentScreenshot)
+      newErrors.paymentScreenshot = "Payment screenshot is required";
 
     if (!form.transactionId.trim())
       newErrors.transactionId = "Transaction ID is required";
@@ -110,7 +109,22 @@ export default function RegistrationForm() {
     const loadingToast = toast.loading("Submitting your registration...");
 
     try {
-      const response = await axios.post("/api/register", form);
+      const formData = new FormData();
+
+      formData.append("name", form.name);
+      formData.append("mobile", form.mobile);
+      formData.append("previousTeam", form.previousTeam);
+      formData.append("Age", form.Age);
+      formData.append("role", form.role);
+      formData.append("transactionId", form.transactionId);
+
+      formData.append("playingStyle", JSON.stringify(form.playingStyle));
+
+      formData.append("playerPhoto", form.playerPhoto);
+
+      formData.append("paymentScreenshot", form.paymentScreenshot);
+
+      const response = await axios.post("/api/register", formData);
 
       toast.dismiss(loadingToast);
       toast.success("Registration submitted successfully! 🏏");
@@ -272,9 +286,11 @@ rgba(231,111,6,1) 100%
             <ImageUpload
               label="Upload Your Photo"
               name="playerPhoto"
-              onImageSelect={handleImageSelect("playerPhotoBase64")}
-              previewUrl={form.playerPhotoBase64}
-              error={errors.playerPhotoBase64}
+              onImageSelect={handleImageSelect("playerPhoto")}
+              previewUrl={
+                form.playerPhoto ? URL.createObjectURL(form.playerPhoto) : ""
+              }
+              error={errors.playerPhoto}
               icon="🤳"
               hint="Clear face photo — JPG, PNG or WebP, max 5MB"
               required
@@ -301,9 +317,13 @@ rgba(231,111,6,1) 100%
             <ImageUpload
               label="Payment Screenshot"
               name="paymentScreenshot"
-              onImageSelect={handleImageSelect("paymentScreenshotBase64")}
-              previewUrl={form.paymentScreenshotBase64}
-              error={errors.paymentScreenshotBase64}
+              onImageSelect={handleImageSelect("paymentScreenshot")}
+              previewUrl={
+                form.paymentScreenshot
+                  ? URL.createObjectURL(form.paymentScreenshot)
+                  : ""
+              }
+              error={errors.paymentScreenshot}
               icon="📲"
               hint="Screenshot of successful UPI payment"
               required

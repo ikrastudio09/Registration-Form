@@ -132,7 +132,6 @@ PlayerSchema.pre("save", async function (next) {
 
 
 // Index for faster queries
-PlayerSchema.index({ transactionId: 1 }, { unique: true });
 PlayerSchema.index({ playerPhone: 1 });
 PlayerSchema.index({ status: 1 });
 PlayerSchema.index({ createdAt: -1 });
