@@ -31,7 +31,7 @@ export default function ImageUpload({
     }
 
     // Validate file size (max 5MB)
-    if (file.size > 1 * 1024 * 1024) {
+    if (file.size > 3 * 1024 * 1024) {
       onImageSelect(null, 'Image size must be under 1MB.');
       return;
     }

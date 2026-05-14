@@ -501,10 +501,10 @@ export default function PlayersAdminPage() {
           <h1 style={styles.pageTitle}>🏏 Player Registrations</h1>
           <p style={styles.pageSubtitle}>Manage, review, and export all registered players</p>
         </div>
-        {/* <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <ExportBtn label="Export Excel" onClick={exportExcel} loading={exporting === 'excel'} icon="📊" color="#16A34A" />
-          <ExportBtn label="Export PDF"   onClick={exportPDF}   loading={exporting === 'pdf'}   icon="📄" color="#DC2626" />
-        </div> */}
+          {/* <ExportBtn label="Export PDF"   onClick={exportPDF}   loading={exporting === 'pdf'}   icon="📄" color="#DC2626" /> */}
+        </div>
       </div>
 
       {/* Stat cards */}

@@ -292,7 +292,7 @@ rgba(231,111,6,1) 100%
               }
               error={errors.playerPhoto}
               icon="🤳"
-              hint="Clear face photo — JPG, PNG or WebP, max 5MB"
+              hint="Clear face photo — JPG, PNG or WebP, max 3MB"
               required
             />
           </FormSection>
