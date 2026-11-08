@@ -7,7 +7,7 @@ import TournamentHeader from "../components/TournamentHeader";
 import RegistrationForm from '../components/RegistrationForm';
 
 export const metadata = {
-  title: 'Player Registration | Crazy Cricket League 2026',
+  title: 'Player Registration | Maheshwari Premier League 2026',
   description: 'Register for the ultimate cricket tournament. Fill in your details and join the league of champions.',
 };
 
@@ -50,7 +50,7 @@ export default function RegisterPage() {
             <div className="h-px w-16" style={{ background: 'rgba(255,255,255,0.1)' }} />
           </div>
           <p className="text-xs" style={{ color: 'var(--color-text-dim)' }}>
-            Crazy Cricket League 2026· All rights reserved
+            Maheshwari Premier League 2026· All rights reserved
           </p>
         </footer>
       </div>
