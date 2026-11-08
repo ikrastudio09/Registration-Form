@@ -21,6 +21,7 @@ import {
   PLAYER_ROLES,
   PLAYING_STYLES,
   CLOTHING_SIZES,
+  PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
   TSHIRT_NAME_MAX_LENGTH,
@@ -59,7 +60,6 @@ export async function POST(request) {
     const transactionIdRaw = (formData.get("transactionId") || "").toString().trim();
     const transactionId = transactionIdRaw.toUpperCase();
     const tShirtSize = (formData.get("tShirtSize") || "").toString().trim();
-    const pantSize = (formData.get("pantSize") || "").toString().trim();
     const tShirtNumberRaw = (formData.get("tShirtNumber") || "").toString().trim();
     const tShirtName = (formData.get("tShirtName") || "").toString().trim().toUpperCase();
 
@@ -99,7 +99,6 @@ export async function POST(request) {
         role,
         transactionId,
         tShirtSize,
-        pantSize,
         tShirtNumber: tShirtNumberRaw,
         tShirtName,
         addressLine1,
@@ -118,7 +117,6 @@ export async function POST(request) {
         "role",
         "transactionId",
         "tShirtSize",
-        "pantSize",
         "tShirtNumber",
         "tShirtName",
         "addressLine1",
@@ -188,6 +186,11 @@ export async function POST(request) {
       return errorResponse(`Invalid role. Must be one of: ${PLAYER_ROLES.join(", ")}`, 400);
     }
 
+    // Previous team validation (optional, but if provided must be one of PREVIOUS_TEAMS)
+    if (previousTeam && !PREVIOUS_TEAMS.includes(previousTeam)) {
+      return errorResponse("Please select a valid previous team from the options.", 400);
+    }
+
     // Playing styles validation (1 to 2 allowed)
     if (!Array.isArray(playingStyle) || playingStyle.length < 1 || playingStyle.length > 2) {
       return errorResponse("Select 1 to 2 playing styles.", 400);
@@ -201,9 +204,6 @@ export async function POST(request) {
     // Clothing size validation
     if (!CLOTHING_SIZES.includes(tShirtSize)) {
       return errorResponse(`Invalid T-shirt size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
-    }
-    if (!CLOTHING_SIZES.includes(pantSize)) {
-      return errorResponse(`Invalid pant size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
     }
 
     // T-shirt number validation
@@ -291,7 +291,6 @@ export async function POST(request) {
         playerType: role,
         previousTeam: previousTeam || undefined,
         tShirtSize,
-        pantSize,
         tShirtNumber: parsedNumber,
         tShirtName,
         playerPhoto: playerPhotoData,
@@ -354,7 +353,6 @@ export async function POST(request) {
         playingStyle: player.playingStyle,
         role: player.playerType,
         tShirtSize: player.tShirtSize,
-        pantSize: player.pantSize,
         tShirtNumber: player.tShirtNumber,
         tShirtName: player.tShirtName,
         transactionId: player.transactionId,

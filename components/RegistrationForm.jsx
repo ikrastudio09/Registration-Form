@@ -16,6 +16,7 @@ import {
   PROFESSIONS,
   PLAYER_ROLES,
   CLOTHING_SIZES,
+  PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
   TSHIRT_NAME_MAX_LENGTH,
@@ -46,7 +47,6 @@ const INITIAL_STATE = {
   paymentScreenshot: null,
   transactionId: "",
   tShirtSize: "",
-  pantSize: "",
   tShirtNumber: "",
   tShirtName: "",
 };
@@ -234,6 +234,11 @@ export default function RegistrationForm() {
       }
     }
 
+    // Previous Team (optional dropdown, must be from PREVIOUS_TEAMS if selected)
+    if (form.previousTeam && !PREVIOUS_TEAMS.includes(form.previousTeam)) {
+      newErrors.previousTeam = "Please select a valid previous team";
+    }
+
     // Address Details (AddressSchema)
     if (!form.addressLine1.trim()) {
       newErrors.addressLine1 = "Address Line 1 is required";
@@ -289,13 +294,6 @@ export default function RegistrationForm() {
       newErrors.tShirtSize = "T-shirt size is required";
     } else if (!CLOTHING_SIZES.includes(form.tShirtSize)) {
       newErrors.tShirtSize = "Select a valid T-shirt size";
-    }
-
-    // Merchandise: Pant Size
-    if (!form.pantSize) {
-      newErrors.pantSize = "Pant size is required";
-    } else if (!CLOTHING_SIZES.includes(form.pantSize)) {
-      newErrors.pantSize = "Select a valid pant size";
     }
 
     // Merchandise: T-Shirt Number (0-99)
@@ -369,7 +367,6 @@ export default function RegistrationForm() {
       formData.append("role", form.role);
       formData.append("playingStyle", JSON.stringify(form.playingStyle));
       formData.append("tShirtSize", form.tShirtSize);
-      formData.append("pantSize", form.pantSize);
       formData.append("tShirtNumber", form.tShirtNumber);
       formData.append("tShirtName", form.tShirtName.trim().toUpperCase());
       formData.append("transactionId", form.transactionId.trim().toUpperCase());
@@ -607,17 +604,18 @@ export default function RegistrationForm() {
               </div>
             )}
 
-            {/* Previous Team */}
+            {/* Previous Team Dropdown */}
             <div data-error={!!errors.previousTeam}>
-              <InputField
+              <SelectField
                 label="Previous Team"
                 name="previousTeam"
                 value={form.previousTeam}
-                onChange={handleChange("previousTeam")}
-                placeholder="Enter previous team name if any"
+                onChange={handleSelectChange("previousTeam")}
+                options={PREVIOUS_TEAMS}
+                placeholder="Select Previous Team (or N/A)"
                 error={errors.previousTeam}
                 icon="🛡️"
-                hint="Optional — previous franchise or club name"
+                hint="Select your previous tournament team or 'N/A'"
               />
             </div>
           </FormSection>
@@ -757,26 +755,12 @@ export default function RegistrationForm() {
                   icon="👕"
                 />
               </div>
-
-              <div data-error={!!errors.pantSize}>
-                <SelectField
-                  label="Pant Size"
-                  name="pantSize"
-                  value={form.pantSize}
-                  onChange={handleSelectChange("pantSize")}
-                  options={CLOTHING_SIZES}
-                  placeholder="Select Pant Size"
-                  required
-                  error={errors.pantSize}
-                  icon="👖"
-                />
-              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div data-error={!!errors.tShirtNumber}>
                 <InputField
-                  label="T-Shirt Number (0–99)"
+                  label="T-Shirt Number (0–9999)"
                   name="tShirtNumber"
                   type="number"
                   min={TSHIRT_NUMBER_MIN}
@@ -787,7 +771,7 @@ export default function RegistrationForm() {
                   required
                   error={errors.tShirtNumber}
                   icon="🔢"
-                  hint="Whole number between 0 and 99"
+                  hint="Whole number between 0 and 9999"
                 />
               </div>
 

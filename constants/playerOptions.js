@@ -60,6 +60,26 @@ export const PROFESSIONS = [
 
 export const PLAYER_ROLES = ["Batsman", "Bowler", "All Rounder"];
 
+export const PREVIOUS_TEAMS = [
+  "Veer Navardev",
+  "SSK Warriors",
+  "Royal Strikers",
+  "MNS",
+  "Legends",
+  "Kukya's Oza Lions",
+  "Bansi",
+  "Kankani Super Giants",
+  "Knight Riders",
+  "Godawri Eagles",
+  "Sahara",
+  "Spartans",
+  "RTC Warriors",
+  "King of Kings",
+  "AAVP Warriors",
+  "Malu Titans",
+  "N/A",
+];
+
 export const PLAYING_STYLES = [
   "Right Arm Batting",
   "Right Arm Balling",
@@ -78,7 +98,7 @@ export const CLOTHING_SIZES = [
 ];
 
 export const TSHIRT_NUMBER_MIN = 0;
-export const TSHIRT_NUMBER_MAX = 99;
+export const TSHIRT_NUMBER_MAX = 9999;
 export const TSHIRT_NAME_MAX_LENGTH = 20;
 export const MAX_IMAGE_SIZE_BYTES = 3 * 1024 * 1024; // 3 MB
 export const ALLOWED_IMAGE_TYPES = [

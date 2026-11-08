@@ -45,7 +45,7 @@ export default function TournamentHeader() {
             
             {/* Glow */}
             <div
-              className="absolute inset-0 blur-3xl opacity-30 rounded-full"
+              className="absolute inset-0 blur-3xl opacity-30"
               style={{
                 background:
                   "radial-gradient(circle, rgba(34,197,94,0.5) 0%, transparent 70%)",
@@ -55,9 +55,9 @@ export default function TournamentHeader() {
             {/* Logo */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/Logo.jpeg"
+              src="/logo1.jpg"
               alt="Tournament Logo"
-              className="relative w-72 sm:w-80 md:w-[420px] object-contain animate-float drop-shadow-2xl"
+              className="relative w-72 rounded-full sm:w-80 md:w-[420px] object-cover animate-float drop-shadow-2xl"
             />
           </div>
         </div>

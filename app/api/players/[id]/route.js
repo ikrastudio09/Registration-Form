@@ -19,6 +19,7 @@ import {
   PLAYER_ROLES,
   PLAYING_STYLES,
   CLOTHING_SIZES,
+  PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
   TSHIRT_NAME_MAX_LENGTH,
@@ -173,7 +174,11 @@ export async function PATCH(request, { params }) {
 
     // 9. Previous Team
     if (body.previousTeam !== undefined) {
-      updateFields.previousTeam = String(body.previousTeam || "").trim();
+      const pt = String(body.previousTeam || "").trim();
+      if (pt && !PREVIOUS_TEAMS.includes(pt)) {
+        return errorResponse("Please select a valid previous team from the options.", 400);
+      }
+      updateFields.previousTeam = pt;
     }
 
     // 10. Playing Style
