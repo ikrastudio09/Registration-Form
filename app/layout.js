@@ -1,5 +1,6 @@
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata = {
   title: 'Cricket Tournament Registration | Join The League',
@@ -13,6 +14,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
+        <Analytics />
         {children}
         <Toaster
           position="top-right"
