@@ -3,6 +3,7 @@ import Player from "../../../models/Player";
 import {
   uploadPlayerPhoto,
   uploadPaymentScreenshot,
+  deleteFromCloudinary,
 } from "../../../lib/cloudinary";
 import {
   successResponse,
@@ -10,130 +11,352 @@ import {
   parseMongooseErrors,
   validateRequiredFields,
   validateMobile,
+  validateDate,
+  validateUploadedFile,
+  calculateAge,
 } from "../../../utils/apiHelpers";
+import {
+  BLOOD_GROUPS,
+  PROFESSIONS,
+  PLAYER_ROLES,
+  PLAYING_STYLES,
+  CLOTHING_SIZES,
+  TSHIRT_NUMBER_MIN,
+  TSHIRT_NUMBER_MAX,
+  TSHIRT_NAME_MAX_LENGTH,
+  MAX_IMAGE_SIZE_BYTES,
+} from "../../../constants/playerOptions";
 
 export async function POST(request) {
+  let playerPhotoData = null;
+  let paymentScreenshotData = null;
+
   try {
-    // Connect to MongoDB
+    // 1. Connect to MongoDB
     await connectDB();
 
-    // Parse request body
-    const formData = await request.formData();
+    // 2. Parse request multipart FormData
+    let formData;
+    try {
+      formData = await request.formData();
+    } catch (formError) {
+      return errorResponse("Invalid form data. Please check your submission.", 400);
+    }
 
-    const name = formData.get("name");
-    const mobile = formData.get("mobile");
-    const Age = formData.get("Age");
-    const role = formData.get("role");
-    const transactionId = formData.get("transactionId");
-    const previousTeam = formData.get("previousTeam");
+    // 3. Extract text fields
+    const name = (formData.get("name") || "").toString().trim();
+    const mobile = (formData.get("mobile") || "").toString().trim();
+    const dateOfBirth = (formData.get("dateOfBirth") || "").toString().trim();
+    const anniversaryRaw = (formData.get("anniversary") || "").toString().trim();
+    const anniversary = anniversaryRaw || null;
+    const bloodGroup = (formData.get("bloodGroup") || "").toString().trim();
+    const fatherName = (formData.get("fatherName") || "").toString().trim();
+    const motherName = (formData.get("motherName") || "").toString().trim();
+    const profession = (formData.get("profession") || "").toString().trim();
+    const professionOtherRaw = (formData.get("professionOther") || "").toString().trim();
+    const previousTeam = (formData.get("previousTeam") || "").toString().trim();
+    const role = (formData.get("role") || "").toString().trim();
+    const transactionIdRaw = (formData.get("transactionId") || "").toString().trim();
+    const transactionId = transactionIdRaw.toUpperCase();
+    const tShirtSize = (formData.get("tShirtSize") || "").toString().trim();
+    const pantSize = (formData.get("pantSize") || "").toString().trim();
+    const tShirtNumberRaw = (formData.get("tShirtNumber") || "").toString().trim();
+    const tShirtName = (formData.get("tShirtName") || "").toString().trim().toUpperCase();
 
-    const playingStyle = JSON.parse(formData.get("playingStyle"));
+    // Address fields matching AddressSchema
+    const addressLine1 = (formData.get("addressLine1") || "").toString().trim();
+    const addressLine2 = (formData.get("addressLine2") || "").toString().trim();
+    const city = (formData.get("city") || "").toString().trim();
+    const state = (formData.get("state") || "").toString().trim();
+    const pinCode = (formData.get("pinCode") || "").toString().trim();
+    const country = (formData.get("country") || "India").toString().trim();
 
+    // Parse playingStyle
+    let playingStyle = [];
+    const playingStyleRaw = formData.get("playingStyle");
+    if (playingStyleRaw) {
+      try {
+        playingStyle = typeof playingStyleRaw === "string" ? JSON.parse(playingStyleRaw) : playingStyleRaw;
+      } catch {
+        return errorResponse("Invalid playing style selection format.", 400);
+      }
+    }
+
+    // Extract file fields
     const playerPhoto = formData.get("playerPhoto");
-
     const paymentScreenshot = formData.get("paymentScreenshot");
 
-    // --- Validate required fields ---
-    const requiredFields = [
-      "name",
-      "mobile",
-      "playerPhoto",
-      "playingStyle",
-      "role",
-      "Age",
-      "paymentScreenshot",
-      "transactionId",
-    ];
-    const body = {
-      name,
-      mobile,
-      playerPhoto,
-      playingStyle,
-      role,
-      Age,
-      paymentScreenshot,
-      transactionId,
-    };
-
-    const missingError = validateRequiredFields(body, requiredFields);
-
-    // Validate mobile number
-    if (!validateMobile(mobile)) {
-      return errorResponse(
-        "Invalid Indian mobile number. Must be 10 digits starting with 6-9.",
-        400,
-      );
+    // 4. Validate Required Fields
+    const requiredCheck = validateRequiredFields(
+      {
+        name,
+        mobile,
+        dateOfBirth,
+        bloodGroup,
+        fatherName,
+        motherName,
+        profession,
+        role,
+        transactionId,
+        tShirtSize,
+        pantSize,
+        tShirtNumber: tShirtNumberRaw,
+        tShirtName,
+        addressLine1,
+        city,
+        state,
+        pinCode,
+      },
+      [
+        "name",
+        "mobile",
+        "dateOfBirth",
+        "bloodGroup",
+        "fatherName",
+        "motherName",
+        "profession",
+        "role",
+        "transactionId",
+        "tShirtSize",
+        "pantSize",
+        "tShirtNumber",
+        "tShirtName",
+        "addressLine1",
+        "city",
+        "state",
+        "pinCode",
+      ],
+    );
+    if (requiredCheck) {
+      return errorResponse(requiredCheck, 400);
     }
 
-    // Validate playing styles count
-    if (
-      !Array.isArray(playingStyle) ||
-      playingStyle.length === 0 ||
-      playingStyle.length > 2
-    ) {
+    // Name validations
+    if (name.length < 2 || name.length > 100) {
+      return errorResponse("Full name must be between 2 and 100 characters.", 400);
+    }
+    if (fatherName.length < 2 || fatherName.length > 100) {
+      return errorResponse("Father's name must be between 2 and 100 characters.", 400);
+    }
+    if (motherName.length < 2 || motherName.length > 100) {
+      return errorResponse("Mother's name must be between 2 and 100 characters.", 400);
+    }
+
+    // Mobile validation
+    if (!validateMobile(mobile)) {
+      return errorResponse("Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.", 400);
+    }
+
+    // DOB validation (required, not future)
+    const dobError = validateDate(dateOfBirth, { required: true, allowFuture: false, fieldName: "Date of Birth" });
+    if (dobError) {
+      return errorResponse(dobError, 400);
+    }
+
+    // Anniversary validation (optional, not future)
+    if (anniversary) {
+      const annivError = validateDate(anniversary, { required: false, allowFuture: false, fieldName: "Anniversary date" });
+      if (annivError) {
+        return errorResponse(annivError, 400);
+      }
+    }
+
+    // Blood group validation
+    if (!BLOOD_GROUPS.includes(bloodGroup)) {
+      return errorResponse(`Invalid blood group. Must be one of: ${BLOOD_GROUPS.join(", ")}`, 400);
+    }
+
+    // Profession validation
+    if (!PROFESSIONS.includes(profession)) {
+      return errorResponse("Please select a valid profession from the predefined options.", 400);
+    }
+
+    // Conditional professionOther validation
+    let professionOther = "";
+    if (profession === "Other") {
+      if (!professionOtherRaw) {
+        return errorResponse("Please specify your profession when 'Other' is selected.", 400);
+      }
+      if (professionOtherRaw.length > 100) {
+        return errorResponse("Custom profession cannot exceed 100 characters.", 400);
+      }
+      professionOther = professionOtherRaw;
+    }
+
+    // Role validation
+    if (!PLAYER_ROLES.includes(role)) {
+      return errorResponse(`Invalid role. Must be one of: ${PLAYER_ROLES.join(", ")}`, 400);
+    }
+
+    // Playing styles validation (1 to 2 allowed)
+    if (!Array.isArray(playingStyle) || playingStyle.length < 1 || playingStyle.length > 2) {
       return errorResponse("Select 1 to 2 playing styles.", 400);
     }
+    for (const style of playingStyle) {
+      if (!PLAYING_STYLES.includes(style)) {
+        return errorResponse(`Invalid playing style: "${style}".`, 400);
+      }
+    }
 
-    // Validate role
-    const validRoles = ["Batsman", "Bowler", "All Rounder"];
-    if (!validRoles.includes(role)) {
+    // Clothing size validation
+    if (!CLOTHING_SIZES.includes(tShirtSize)) {
+      return errorResponse(`Invalid T-shirt size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
+    }
+    if (!CLOTHING_SIZES.includes(pantSize)) {
+      return errorResponse(`Invalid pant size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
+    }
+
+    // T-shirt number validation
+    const parsedNumber = Number(tShirtNumberRaw);
+    if (!Number.isInteger(parsedNumber) || parsedNumber < TSHIRT_NUMBER_MIN || parsedNumber > TSHIRT_NUMBER_MAX) {
       return errorResponse(
-        `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+        `T-shirt number must be a whole number between ${TSHIRT_NUMBER_MIN} and ${TSHIRT_NUMBER_MAX}.`,
         400,
       );
     }
 
-    // Check for duplicate transaction ID before uploading images
-    const existingPlayer = await Player.findOne({
-      transactionId: transactionId.toUpperCase(),
+    // T-shirt name validation
+    if (!tShirtName || tShirtName.length > TSHIRT_NAME_MAX_LENGTH) {
+      return errorResponse(`T-shirt name is required and cannot exceed ${TSHIRT_NAME_MAX_LENGTH} characters.`, 400);
+    }
+
+    // Transaction ID validation
+    if (transactionId.length < 4) {
+      return errorResponse("Transaction ID must be at least 4 characters long.", 400);
+    }
+
+    // 5. File Validations (Frontend and Backend enforcement)
+    const photoError = validateUploadedFile(playerPhoto, "Player photo", {
+      required: true,
+      maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
     });
+    if (photoError) {
+      return errorResponse(photoError, 400);
+    }
+
+    const paymentError = validateUploadedFile(paymentScreenshot, "Payment screenshot", {
+      required: true,
+      maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+    });
+    if (paymentError) {
+      return errorResponse(paymentError, 400);
+    }
+
+    // 6. Check for duplicate transaction ID before uploading to Cloudinary
+    const existingPlayer = await Player.findOne({ transactionId });
     if (existingPlayer) {
       return errorResponse(
-        `Transaction ID "${transactionId}" is already registered. Please use a unique transaction ID.`,
+        `Transaction ID "${transactionId}" is already registered. Please check and provide your unique payment transaction ID.`,
         409,
       );
     }
 
-    // --- Upload images to Cloudinary ---
-    let playerPhotoData, paymentScreenshotData;
-
+    // 7. Upload images to Cloudinary with rollback handling
     try {
-      [playerPhotoData, paymentScreenshotData] = await Promise.all([
-        uploadPlayerPhoto(playerPhoto),
-        uploadPaymentScreenshot(paymentScreenshot),
-      ]);
+      playerPhotoData = await uploadPlayerPhoto(playerPhoto);
     } catch (uploadError) {
-      return errorResponse(`Image upload failed: ${uploadError.message}`, 500);
+      console.error("Player photo upload failed:", uploadError);
+      return errorResponse(`Player photo upload failed: ${uploadError.message}`, 500);
     }
 
-    // --- Save player to MongoDB ---
-    const player = new Player({
-      playerName: name.trim(),
-      playerPhone: mobile,
-      Age,
-      playerPhoto: playerPhotoData,
-      playingStyle,
-      playerType: role,
-      previousTeam,
-      paymentScreenshot: paymentScreenshotData,
-      transactionId: transactionId.trim().toUpperCase(),
-      status: "pending",
-      playerCategory: "Undefined",
-      playerPool: 0,
-    });
+    try {
+      paymentScreenshotData = await uploadPaymentScreenshot(paymentScreenshot);
+    } catch (uploadError) {
+      console.error("Payment screenshot upload failed:", uploadError);
+      // Clean up already uploaded player photo
+      if (playerPhotoData?.public_id) {
+        try {
+          await deleteFromCloudinary(playerPhotoData.public_id);
+        } catch (cleanupErr) {
+          console.error("Failed to delete orphaned player photo:", cleanupErr);
+        }
+      }
+      return errorResponse(`Payment screenshot upload failed: ${uploadError.message}`, 500);
+    }
 
-    await player.save();
+    // 8. Save player to MongoDB
+    let player;
+    try {
+      player = new Player({
+        playerName: name,
+        playerPhone: mobile,
+        dateOfBirth: new Date(dateOfBirth),
+        anniversary: anniversary ? new Date(anniversary) : undefined,
+        bloodGroup,
+        fatherName,
+        motherName,
+        profession,
+        professionOther: profession === "Other" ? professionOther : undefined,
+        playingStyle,
+        playerType: role,
+        previousTeam: previousTeam || undefined,
+        tShirtSize,
+        pantSize,
+        tShirtNumber: parsedNumber,
+        tShirtName,
+        playerPhoto: playerPhotoData,
+        paymentScreenshot: paymentScreenshotData,
+        transactionId,
+        playerAddress: [
+          {
+            AddressLine1: addressLine1,
+            AddressLine2: addressLine2 || undefined,
+            City: city,
+            State: state,
+            PinCode: pinCode,
+            Country: country || "India",
+          },
+        ],
+        status: "pending",
+        playerCategory: "Undefined",
+        playerPool: 0,
+      });
 
-    // Return success with player data (excluding sensitive image public IDs)
+      await player.save();
+    } catch (dbError) {
+      console.error("Database save error:", dbError);
+      // Clean up both uploaded images in case of DB failure
+      if (playerPhotoData?.public_id) {
+        try {
+          await deleteFromCloudinary(playerPhotoData.public_id);
+        } catch (e) {
+          console.error("Cloudinary cleanup error for photo:", e);
+        }
+      }
+      if (paymentScreenshotData?.public_id) {
+        try {
+          await deleteFromCloudinary(paymentScreenshotData.public_id);
+        } catch (e) {
+          console.error("Cloudinary cleanup error for payment:", e);
+        }
+      }
+
+      if (dbError.name === "ValidationError" || dbError.code === 11000) {
+        const parsed = parseMongooseErrors(dbError);
+        return errorResponse(parsed.message, parsed.status, parsed.errors);
+      }
+      return errorResponse("Failed to complete player registration. Please try again.", 500);
+    }
+
+    // 9. Return success response (never expose Cloudinary public_ids)
     return successResponse(
       {
         id: player._id,
+        playerID: player.playerID,
         name: player.playerName,
         mobile: player.playerPhone,
+        dateOfBirth: player.dateOfBirth,
+        age: calculateAge(player.dateOfBirth),
+        bloodGroup: player.bloodGroup,
+        profession: player.profession,
+        professionOther: player.professionOther,
         playerPhoto: player.playerPhoto.url,
         playingStyle: player.playingStyle,
         role: player.playerType,
-        Age: player.Age,
+        tShirtSize: player.tShirtSize,
+        pantSize: player.pantSize,
+        tShirtNumber: player.tShirtNumber,
+        tShirtName: player.tShirtName,
         transactionId: player.transactionId,
         status: player.status,
         createdAt: player.createdAt,
@@ -142,14 +365,19 @@ export async function POST(request) {
       201,
     );
   } catch (error) {
-    console.error("Registration error:", error);
-
-    // Handle Mongoose errors
-    if (error.name === "ValidationError" || error.code === 11000) {
-      const parsed = parseMongooseErrors(error);
-      return errorResponse(parsed.message, parsed.status, parsed.errors);
+    console.error("Unhandled registration error:", error);
+    // Safe cleanup in case of unexpected exceptions
+    if (playerPhotoData?.public_id) {
+      try {
+        await deleteFromCloudinary(playerPhotoData.public_id);
+      } catch {}
+    }
+    if (paymentScreenshotData?.public_id) {
+      try {
+        await deleteFromCloudinary(paymentScreenshotData.public_id);
+      } catch {}
     }
 
-    return errorResponse("Registration failed. Please try again.", 500);
+    return errorResponse("Registration failed due to an unexpected error. Please try again.", 500);
   }
 }

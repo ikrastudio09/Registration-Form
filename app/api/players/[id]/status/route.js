@@ -2,9 +2,9 @@
  * PATCH /api/players/[id]/status
  * Update a player's registration status (pending | approved | rejected)
  */
-import connectDB from '../../../../../lib/mongodb';
-import Player from '../../../../../models/Player';
-import { successResponse, errorResponse } from '../../../../../utils/apiHelpers';
+import connectDB from "../../../../../lib/mongodb";
+import Player from "../../../../../models/Player";
+import { successResponse, errorResponse, calculateAge } from "../../../../../utils/apiHelpers";
 
 export async function PATCH(request, { params }) {
   try {
@@ -14,34 +14,42 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const { status } = body;
 
-    const VALID_STATUSES = ['pending', 'approved', 'rejected'];
+    const VALID_STATUSES = ["pending", "approved", "rejected"];
 
     if (!status || !VALID_STATUSES.includes(status)) {
       return errorResponse(
-        `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`,
-        400
+        `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`,
+        400,
       );
     }
 
-    const player = await Player.findByIdAndUpdate(
+    const playerRaw = await Player.findByIdAndUpdate(
       id,
       { status },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .select(
-        'playerID playerName playerPhone Age playerPhoto.url ' +
-        'playingStyle playerType previousTeam playerPool playerCategory ' +
-        'paymentScreenshot.url transactionId status createdAt updatedAt'
+        "playerID playerName playerPhone dateOfBirth anniversary bloodGroup " +
+          "fatherName motherName profession professionOther previousTeam playerAddress " +
+          "previousPoints previousPerformance " +
+          "playerPhoto.url playingStyle playerType playerPool playerCategory " +
+          "tShirtSize pantSize tShirtNumber tShirtName " +
+          "paymentScreenshot.url transactionId status Age createdAt updatedAt",
       )
       .lean();
 
-    if (!player) {
-      return errorResponse('Player not found.', 404);
+    if (!playerRaw) {
+      return errorResponse("Player not found.", 404);
     }
 
-    return successResponse({ player }, 'Player status updated successfully.');
+    const player = {
+      ...playerRaw,
+      calculatedAge: calculateAge(playerRaw.dateOfBirth, playerRaw.Age),
+    };
+
+    return successResponse({ player }, "Player status updated successfully.");
   } catch (error) {
-    console.error('Update player status error:', error);
-    return errorResponse('Failed to update player status.', 500);
+    console.error("Update player status error:", error);
+    return errorResponse("Failed to update player status.", 500);
   }
 }

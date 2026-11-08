@@ -53,6 +53,7 @@ export default function TournamentHeader() {
             />
 
             {/* Logo */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/Logo.jpeg"
               alt="Tournament Logo"
@@ -67,7 +68,7 @@ export default function TournamentHeader() {
           {/* Main title */}
           <div className="relative inline-block">
             <h1
-              className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-widest"
+              className="text-4xl sm:text-6xl md:text-5xl font-bold tracking-widest"
               style={{
                 fontFamily: "var(--font-display)",
                 background:
@@ -77,7 +78,7 @@ export default function TournamentHeader() {
                 lineHeight: 1.05,
               }}
             >
-              Crazy Cricket
+              Maheshwari
             </h1>
 
             <div
@@ -86,7 +87,7 @@ export default function TournamentHeader() {
                 fontFamily: "var(--font-display)",
               }}
             >
-              League
+              Premier League
             </div>
           </div>
 
@@ -105,15 +106,15 @@ export default function TournamentHeader() {
               lineHeight: 1.7,
             }}
           >
-            This time with more crazy rules, more madness, more power and more
+            This time with more fun, more madness, more power and more
             cricket.
           </p>
 
           {/* Stats */}
           <div className="flex items-center justify-center lg:justify-start gap-10 mt-8">
             {[
-              { value: "₹750", label: "Entry Fee" },
-              { value: "₹75000", label: "Grand Prize" },
+              { value: "₹2700", label: "Entry Fee (Members)" },
+              { value: "₹2500", label: "Entry Fee (Non-Members)" },
             ].map((stat) => (
               <div
                 key={stat.label}

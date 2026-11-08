@@ -47,7 +47,8 @@ export default function PaymentQR() {
               style={{ background: '#f8f8f8' }}
             >
               {/* Sample QR pattern using SVG */}
-              <img src="/QR.jpeg" className="object-cover"/>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/QR.jpeg" alt="Payment QR Code" />
             </div>
 
             {/* Animated ring */}
@@ -64,7 +65,7 @@ export default function PaymentQR() {
           <div className="mt-2 text-center">
             <p className="text-xs" style={{ color: 'var(--color-text-dim)' }}>UPI ID</p>
             <p className="text-sm font-mono font-semibold" style={{ color: '#fbbf24' }}>
-              himanshuin29575@naviaxis
+              sangliurban.0060043010000738@icici
             </p>
           </div>
         </div>
@@ -76,9 +77,19 @@ export default function PaymentQR() {
             className="flex items-center justify-between p-3 rounded-xl"
             style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}
           >
-            <span className="text-sm" style={{ color: 'rgba(232,245,233,0.7)' }}>Registration Fee</span>
+            <span className="text-sm" style={{ color: 'rgba(232,245,233,0.7)' }}>Registration Fee (For Non-Members)</span>
             <span className="text-xl font-bold" style={{ color: '#4ade80', fontFamily: 'var(--font-accent)' }}>
-              ₹750
+              ₹2500
+            </span>
+          </div>
+
+          <div
+            className="flex items-center justify-between p-3 rounded-xl"
+            style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}
+          >
+            <span className="text-sm" style={{ color: 'rgba(232,245,233,0.7)' }}>Registration Fee (For Members)</span>
+            <span className="text-xl font-bold" style={{ color: '#4ade80', fontFamily: 'var(--font-accent)' }}>
+              ₹2700
             </span>
           </div>
 
@@ -86,7 +97,7 @@ export default function PaymentQR() {
           <div className="flex flex-col gap-2">
             {[
               { step: '1', text: 'Scan QR with any UPI app', icon: '📱' },
-              { step: '2', text: 'Pay ₹750 registration fee', icon: '💸' },
+              { step: '2', text: 'Pay registration fee', icon: '💸' },
               { step: '3', text: 'Save payment screenshot', icon: '📸' },
               { step: '4', text: 'Upload screenshot & enter Transaction ID below', icon: '✅' },
             ].map((item) => (
@@ -105,7 +116,7 @@ export default function PaymentQR() {
           </div>
 
           {/* Warning */}
-          <div
+          {/* <div
             className="flex items-start gap-2 p-3 rounded-xl text-xs"
             style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5' }}
           >
@@ -113,7 +124,7 @@ export default function PaymentQR() {
             <span>
               <strong>Complete payment BEFORE submitting the form.</strong> Registrations without valid payment proof will be rejected.
             </span>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -1,7 +1,6 @@
-import connectDB from '../../../../../lib/mongodb';
-import Player from '../../../../../models/Player';
-import { successResponse, errorResponse } from '../../../../../utils/apiHelpers';
-
+import connectDB from "../../../../../lib/mongodb";
+import Player from "../../../../../models/Player";
+import { successResponse, errorResponse, calculateAge } from "../../../../../utils/apiHelpers";
 
 export async function PATCH(request, { params }) {
   try {
@@ -9,27 +8,35 @@ export async function PATCH(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const {playerPool} = body;
+    const { playerPool } = body;
 
-    const player = await Player.findByIdAndUpdate(
+    const playerRaw = await Player.findByIdAndUpdate(
       id,
       { playerPool },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     )
       .select(
-        'playerID playerName playerPhone Age playerPhoto.url ' +
-        'playingStyle playerType previousTeam playerPool playerCategory ' +
-        'paymentScreenshot.url transactionId status createdAt updatedAt'
+        "playerID playerName playerPhone dateOfBirth anniversary bloodGroup " +
+          "fatherName motherName profession professionOther previousTeam playerAddress " +
+          "previousPoints previousPerformance " +
+          "playerPhoto.url playingStyle playerType playerPool playerCategory " +
+          "tShirtSize pantSize tShirtNumber tShirtName " +
+          "paymentScreenshot.url transactionId status Age createdAt updatedAt",
       )
       .lean();
 
-    if (!player) {
-      return errorResponse('Player not found.', 404);
+    if (!playerRaw) {
+      return errorResponse("Player not found.", 404);
     }
 
-    return successResponse({ player }, 'Player pool updated successfully.');
+    const player = {
+      ...playerRaw,
+      calculatedAge: calculateAge(playerRaw.dateOfBirth, playerRaw.Age),
+    };
+
+    return successResponse({ player }, "Player pool updated successfully.");
   } catch (error) {
-    console.error('Update player pool error:', error);
-    return errorResponse('Failed to update player pool.', 500);
+    console.error("Update player pool error:", error);
+    return errorResponse("Failed to update player pool.", 500);
   }
 }
