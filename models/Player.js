@@ -209,6 +209,15 @@ const PlayerSchema = new mongoose.Schema(
       },
     },
 
+    pantSize: {
+      type: String,
+      required: [true, "Pant size is required"],
+      enum: {
+        values: CLOTHING_SIZES,
+        message: "{VALUE} is not a valid clothing size",
+      },
+    },
+
     tShirtNumber: {
       type: Number,
       required: [true, "T-shirt number is required"],
@@ -242,6 +251,13 @@ const PlayerSchema = new mongoose.Schema(
     playerCategory: {
       type: String,
       default: "Undefined",
+    },
+
+    paymentMethod: {
+      type: String,
+      enum: ["Cash", "Online"],
+      required: true,
+      default: "Cash",
     },
 
     // Payment screenshot stored in Cloudinary

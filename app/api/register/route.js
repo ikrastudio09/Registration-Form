@@ -41,27 +41,42 @@ export async function POST(request) {
     try {
       formData = await request.formData();
     } catch (formError) {
-      return errorResponse("Invalid form data. Please check your submission.", 400);
+      return errorResponse(
+        "Invalid form data. Please check your submission.",
+        400,
+      );
     }
 
     // 3. Extract text fields
     const name = (formData.get("name") || "").toString().trim();
     const mobile = (formData.get("mobile") || "").toString().trim();
     const dateOfBirth = (formData.get("dateOfBirth") || "").toString().trim();
-    const anniversaryRaw = (formData.get("anniversary") || "").toString().trim();
+    const anniversaryRaw = (formData.get("anniversary") || "")
+      .toString()
+      .trim();
     const anniversary = anniversaryRaw || null;
     const bloodGroup = (formData.get("bloodGroup") || "").toString().trim();
     const fatherName = (formData.get("fatherName") || "").toString().trim();
     const motherName = (formData.get("motherName") || "").toString().trim();
     const profession = (formData.get("profession") || "").toString().trim();
-    const professionOtherRaw = (formData.get("professionOther") || "").toString().trim();
+    const professionOtherRaw = (formData.get("professionOther") || "")
+      .toString()
+      .trim();
     const previousTeam = (formData.get("previousTeam") || "").toString().trim();
     const role = (formData.get("role") || "").toString().trim();
-    const transactionIdRaw = (formData.get("transactionId") || "").toString().trim();
+    const transactionIdRaw = (formData.get("transactionId") || "")
+      .toString()
+      .trim();
     const transactionId = transactionIdRaw.toUpperCase();
     const tShirtSize = (formData.get("tShirtSize") || "").toString().trim();
-    const tShirtNumberRaw = (formData.get("tShirtNumber") || "").toString().trim();
-    const tShirtName = (formData.get("tShirtName") || "").toString().trim().toUpperCase();
+    const pantSize = (formData.get("pantSize") || "").toString().trim();
+    const tShirtNumberRaw = (formData.get("tShirtNumber") || "")
+      .toString()
+      .trim();
+    const tShirtName = (formData.get("tShirtName") || "")
+      .toString()
+      .trim()
+      .toUpperCase();
 
     // Address fields matching AddressSchema
     const addressLine1 = (formData.get("addressLine1") || "").toString().trim();
@@ -76,7 +91,10 @@ export async function POST(request) {
     const playingStyleRaw = formData.get("playingStyle");
     if (playingStyleRaw) {
       try {
-        playingStyle = typeof playingStyleRaw === "string" ? JSON.parse(playingStyleRaw) : playingStyleRaw;
+        playingStyle =
+          typeof playingStyleRaw === "string"
+            ? JSON.parse(playingStyleRaw)
+            : playingStyleRaw;
       } catch {
         return errorResponse("Invalid playing style selection format.", 400);
       }
@@ -85,6 +103,7 @@ export async function POST(request) {
     // Extract file fields
     const playerPhoto = formData.get("playerPhoto");
     const paymentScreenshot = formData.get("paymentScreenshot");
+    const paymentMethod = formData.get("paymentMethod");
 
     // 4. Validate Required Fields
     const requiredCheck = validateRequiredFields(
@@ -98,7 +117,9 @@ export async function POST(request) {
         profession,
         role,
         transactionId,
+        paymentMethod,
         tShirtSize,
+        pantSize,
         tShirtNumber: tShirtNumberRaw,
         tShirtName,
         addressLine1,
@@ -116,7 +137,9 @@ export async function POST(request) {
         "profession",
         "role",
         "transactionId",
+        "paymentMethod",
         "tShirtSize",
+        "pantSize",
         "tShirtNumber",
         "tShirtName",
         "addressLine1",
@@ -131,29 +154,49 @@ export async function POST(request) {
 
     // Name validations
     if (name.length < 2 || name.length > 100) {
-      return errorResponse("Full name must be between 2 and 100 characters.", 400);
+      return errorResponse(
+        "Full name must be between 2 and 100 characters.",
+        400,
+      );
     }
     if (fatherName.length < 2 || fatherName.length > 100) {
-      return errorResponse("Father's name must be between 2 and 100 characters.", 400);
+      return errorResponse(
+        "Father's name must be between 2 and 100 characters.",
+        400,
+      );
     }
     if (motherName.length < 2 || motherName.length > 100) {
-      return errorResponse("Mother's name must be between 2 and 100 characters.", 400);
+      return errorResponse(
+        "Mother's name must be between 2 and 100 characters.",
+        400,
+      );
     }
 
     // Mobile validation
     if (!validateMobile(mobile)) {
-      return errorResponse("Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.", 400);
+      return errorResponse(
+        "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.",
+        400,
+      );
     }
 
     // DOB validation (required, not future)
-    const dobError = validateDate(dateOfBirth, { required: true, allowFuture: false, fieldName: "Date of Birth" });
+    const dobError = validateDate(dateOfBirth, {
+      required: true,
+      allowFuture: false,
+      fieldName: "Date of Birth",
+    });
     if (dobError) {
       return errorResponse(dobError, 400);
     }
 
     // Anniversary validation (optional, not future)
     if (anniversary) {
-      const annivError = validateDate(anniversary, { required: false, allowFuture: false, fieldName: "Anniversary date" });
+      const annivError = validateDate(anniversary, {
+        required: false,
+        allowFuture: false,
+        fieldName: "Anniversary date",
+      });
       if (annivError) {
         return errorResponse(annivError, 400);
       }
@@ -161,38 +204,60 @@ export async function POST(request) {
 
     // Blood group validation
     if (!BLOOD_GROUPS.includes(bloodGroup)) {
-      return errorResponse(`Invalid blood group. Must be one of: ${BLOOD_GROUPS.join(", ")}`, 400);
+      return errorResponse(
+        `Invalid blood group. Must be one of: ${BLOOD_GROUPS.join(", ")}`,
+        400,
+      );
     }
 
     // Profession validation
     if (!PROFESSIONS.includes(profession)) {
-      return errorResponse("Please select a valid profession from the predefined options.", 400);
+      return errorResponse(
+        "Please select a valid profession from the predefined options.",
+        400,
+      );
     }
 
     // Conditional professionOther validation
     let professionOther = "";
     if (profession === "Other") {
       if (!professionOtherRaw) {
-        return errorResponse("Please specify your profession when 'Other' is selected.", 400);
+        return errorResponse(
+          "Please specify your profession when 'Other' is selected.",
+          400,
+        );
       }
       if (professionOtherRaw.length > 100) {
-        return errorResponse("Custom profession cannot exceed 100 characters.", 400);
+        return errorResponse(
+          "Custom profession cannot exceed 100 characters.",
+          400,
+        );
       }
       professionOther = professionOtherRaw;
     }
 
     // Role validation
     if (!PLAYER_ROLES.includes(role)) {
-      return errorResponse(`Invalid role. Must be one of: ${PLAYER_ROLES.join(", ")}`, 400);
+      return errorResponse(
+        `Invalid role. Must be one of: ${PLAYER_ROLES.join(", ")}`,
+        400,
+      );
     }
 
     // Previous team validation (optional, but if provided must be one of PREVIOUS_TEAMS)
     if (previousTeam && !PREVIOUS_TEAMS.includes(previousTeam)) {
-      return errorResponse("Please select a valid previous team from the options.", 400);
+      return errorResponse(
+        "Please select a valid previous team from the options.",
+        400,
+      );
     }
 
     // Playing styles validation (1 to 2 allowed)
-    if (!Array.isArray(playingStyle) || playingStyle.length < 1 || playingStyle.length > 2) {
+    if (
+      !Array.isArray(playingStyle) ||
+      playingStyle.length < 1 ||
+      playingStyle.length > 2
+    ) {
       return errorResponse("Select 1 to 2 playing styles.", 400);
     }
     for (const style of playingStyle) {
@@ -203,12 +268,26 @@ export async function POST(request) {
 
     // Clothing size validation
     if (!CLOTHING_SIZES.includes(tShirtSize)) {
-      return errorResponse(`Invalid T-shirt size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
+      return errorResponse(
+        `Invalid T-shirt size. Must be one of: ${CLOTHING_SIZES.join(", ")}`,
+        400,
+      );
+    }
+
+    if (!CLOTHING_SIZES.includes(pantSize)) {
+      return errorResponse(
+        `Invalid pant size. Must be one of: ${CLOTHING_SIZES.join(", ")}`,
+        400,
+      );
     }
 
     // T-shirt number validation
     const parsedNumber = Number(tShirtNumberRaw);
-    if (!Number.isInteger(parsedNumber) || parsedNumber < TSHIRT_NUMBER_MIN || parsedNumber > TSHIRT_NUMBER_MAX) {
+    if (
+      !Number.isInteger(parsedNumber) ||
+      parsedNumber < TSHIRT_NUMBER_MIN ||
+      parsedNumber > TSHIRT_NUMBER_MAX
+    ) {
       return errorResponse(
         `T-shirt number must be a whole number between ${TSHIRT_NUMBER_MIN} and ${TSHIRT_NUMBER_MAX}.`,
         400,
@@ -217,12 +296,21 @@ export async function POST(request) {
 
     // T-shirt name validation
     if (!tShirtName || tShirtName.length > TSHIRT_NAME_MAX_LENGTH) {
-      return errorResponse(`T-shirt name is required and cannot exceed ${TSHIRT_NAME_MAX_LENGTH} characters.`, 400);
+      return errorResponse(
+        `T-shirt name is required and cannot exceed ${TSHIRT_NAME_MAX_LENGTH} characters.`,
+        400,
+      );
     }
 
-    // Transaction ID validation
-    if (transactionId.length < 4) {
-      return errorResponse("Transaction ID must be at least 4 characters long.", 400);
+    if (!["Cash", "Online"].includes(paymentMethod)) {
+      return errorResponse("Invalid payment method.", 400);
+    }
+
+    if (!transactionId || transactionId.length < 4) {
+      return errorResponse(
+        "Valid receipt/transaction number is required.",
+        400,
+      );
     }
 
     // 5. File Validations (Frontend and Backend enforcement)
@@ -234,10 +322,14 @@ export async function POST(request) {
       return errorResponse(photoError, 400);
     }
 
-    const paymentError = validateUploadedFile(paymentScreenshot, "Payment screenshot", {
-      required: true,
-      maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
-    });
+    const paymentError = validateUploadedFile(
+      paymentScreenshot,
+      "Payment screenshot",
+      {
+        required: true,
+        maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+      },
+    );
     if (paymentError) {
       return errorResponse(paymentError, 400);
     }
@@ -256,7 +348,10 @@ export async function POST(request) {
       playerPhotoData = await uploadPlayerPhoto(playerPhoto);
     } catch (uploadError) {
       console.error("Player photo upload failed:", uploadError);
-      return errorResponse(`Player photo upload failed: ${uploadError.message}`, 500);
+      return errorResponse(
+        `Player photo upload failed: ${uploadError.message}`,
+        500,
+      );
     }
 
     try {
@@ -271,7 +366,10 @@ export async function POST(request) {
           console.error("Failed to delete orphaned player photo:", cleanupErr);
         }
       }
-      return errorResponse(`Payment screenshot upload failed: ${uploadError.message}`, 500);
+      return errorResponse(
+        `Payment screenshot upload failed: ${uploadError.message}`,
+        500,
+      );
     }
 
     // 8. Save player to MongoDB
@@ -291,9 +389,11 @@ export async function POST(request) {
         playerType: role,
         previousTeam: previousTeam || undefined,
         tShirtSize,
+        pantSize,
         tShirtNumber: parsedNumber,
         tShirtName,
         playerPhoto: playerPhotoData,
+        paymentMethod,
         paymentScreenshot: paymentScreenshotData,
         transactionId,
         playerAddress: [
@@ -334,7 +434,10 @@ export async function POST(request) {
         const parsed = parseMongooseErrors(dbError);
         return errorResponse(parsed.message, parsed.status, parsed.errors);
       }
-      return errorResponse("Failed to complete player registration. Please try again.", 500);
+      return errorResponse(
+        "Failed to complete player registration. Please try again.",
+        500,
+      );
     }
 
     // 9. Return success response (never expose Cloudinary public_ids)
@@ -353,6 +456,7 @@ export async function POST(request) {
         playingStyle: player.playingStyle,
         role: player.playerType,
         tShirtSize: player.tShirtSize,
+        pantSize: player.pantSize,
         tShirtNumber: player.tShirtNumber,
         tShirtName: player.tShirtName,
         transactionId: player.transactionId,
@@ -376,6 +480,9 @@ export async function POST(request) {
       } catch {}
     }
 
-    return errorResponse("Registration failed due to an unexpected error. Please try again.", 500);
+    return errorResponse(
+      "Registration failed due to an unexpected error. Please try again.",
+      500,
+    );
   }
 }

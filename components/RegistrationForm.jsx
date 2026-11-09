@@ -15,7 +15,8 @@ import {
   BLOOD_GROUPS,
   PROFESSIONS,
   PLAYER_ROLES,
-  CLOTHING_SIZES,
+  TSHIRT_SIZES,
+  PANT_SIZES,
   PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
@@ -44,9 +45,11 @@ const INITIAL_STATE = {
   playerPhoto: null,
   playingStyle: [],
   role: "",
+  paymentMethod: "Online",
   paymentScreenshot: null,
   transactionId: "",
   tShirtSize: "",
+  pantSize: "",
   tShirtNumber: "",
   tShirtName: "",
 };
@@ -164,7 +167,8 @@ export default function RegistrationForm() {
     if (!form.mobile.trim()) {
       newErrors.mobile = "Mobile number is required";
     } else if (!/^[6-9]\d{9}$/.test(form.mobile.trim())) {
-      newErrors.mobile = "Enter a valid 10-digit Indian mobile number (starts with 6-9)";
+      newErrors.mobile =
+        "Enter a valid 10-digit Indian mobile number (starts with 6-9)";
     }
 
     // Date of Birth
@@ -222,7 +226,8 @@ export default function RegistrationForm() {
     if (!form.profession) {
       newErrors.profession = "Profession selection is mandatory";
     } else if (!PROFESSIONS.includes(form.profession)) {
-      newErrors.profession = "Select a valid profession from predefined options";
+      newErrors.profession =
+        "Select a valid profession from predefined options";
     }
 
     // Conditional Other Profession
@@ -230,7 +235,8 @@ export default function RegistrationForm() {
       if (!form.professionOther.trim()) {
         newErrors.professionOther = "Please specify your profession";
       } else if (form.professionOther.trim().length > 100) {
-        newErrors.professionOther = "Custom profession cannot exceed 100 characters";
+        newErrors.professionOther =
+          "Custom profession cannot exceed 100 characters";
       }
     }
 
@@ -277,6 +283,26 @@ export default function RegistrationForm() {
       newErrors.role = "Select a valid player role";
     }
 
+    if (!["Cash", "Online"].includes(form.paymentMethod)) {
+      newErrors.paymentMethod = "Please select a valid payment method";
+    }
+
+    if (!form.paymentScreenshot) {
+      newErrors.paymentScreenshot =
+        form.paymentMethod === "Cash"
+          ? "Please upload a photo of the cash receipt"
+          : "Please upload the online payment screenshot";
+    }
+
+    if (!form.transactionId.trim()) {
+      newErrors.transactionId =
+        form.paymentMethod === "Cash"
+          ? "Receipt number is required"
+          : "Transaction ID is required";
+    } else if (form.transactionId.trim().length < 4) {
+      newErrors.transactionId = "Number must be at least 4 characters";
+    }
+
     // Payment Screenshot
     if (!form.paymentScreenshot) {
       newErrors.paymentScreenshot = "Payment screenshot is required";
@@ -292,12 +318,23 @@ export default function RegistrationForm() {
     // Merchandise: T-Shirt Size
     if (!form.tShirtSize) {
       newErrors.tShirtSize = "T-shirt size is required";
-    } else if (!CLOTHING_SIZES.includes(form.tShirtSize)) {
+    } else if (!TSHIRT_SIZES.includes(form.tShirtSize)) {
       newErrors.tShirtSize = "Select a valid T-shirt size";
     }
 
+    // Merchandise: Pant Size
+    if (!form.pantSize) {
+      newErrors.pantSize = "Pant size is required";
+    } else if (!PANT_SIZES.includes(form.pantSize)) {
+      newErrors.pantSize = "Select a valid pant size";
+    }
+
     // Merchandise: T-Shirt Number (0-99)
-    if (form.tShirtNumber === "" || form.tShirtNumber === null || form.tShirtNumber === undefined) {
+    if (
+      form.tShirtNumber === "" ||
+      form.tShirtNumber === null ||
+      form.tShirtNumber === undefined
+    ) {
       newErrors.tShirtNumber = "T-shirt number is required";
     } else {
       const num = Number(form.tShirtNumber);
@@ -324,7 +361,9 @@ export default function RegistrationForm() {
     e.preventDefault();
 
     if (!validate()) {
-      toast.error("Please fill all required fields correctly before submitting.");
+      toast.error(
+        "Please fill all required fields correctly before submitting.",
+      );
       // Smoothly scroll to the first element with an error
       setTimeout(() => {
         const errorEl = document.querySelector('[data-error="true"]');
@@ -367,11 +406,13 @@ export default function RegistrationForm() {
       formData.append("role", form.role);
       formData.append("playingStyle", JSON.stringify(form.playingStyle));
       formData.append("tShirtSize", form.tShirtSize);
+      formData.append("pantSize", form.pantSize);
       formData.append("tShirtNumber", form.tShirtNumber);
       formData.append("tShirtName", form.tShirtName.trim().toUpperCase());
       formData.append("transactionId", form.transactionId.trim().toUpperCase());
       formData.append("playerPhoto", form.playerPhoto);
       formData.append("paymentScreenshot", form.paymentScreenshot);
+      formData.append("paymentMethod", form.paymentMethod);
 
       const response = await axios.post("/api/register", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -388,7 +429,10 @@ export default function RegistrationForm() {
       toast.error(serverMessage);
 
       // Map server-returned field errors if available
-      if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+      if (
+        err.response?.data?.errors &&
+        Array.isArray(err.response.data.errors)
+      ) {
         const serverFieldErrors = {};
         err.response.data.errors.forEach((e) => {
           if (e.field) serverFieldErrors[e.field] = e.message;
@@ -507,7 +551,9 @@ export default function RegistrationForm() {
                   error={errors.dateOfBirth}
                   icon="🎂"
                   hint={
-                    computedAge !== null ? `Calculated Age: ${computedAge} years` : undefined
+                    computedAge !== null
+                      ? `Calculated Age: ${computedAge} years`
+                      : undefined
                   }
                 />
               </div>
@@ -588,7 +634,10 @@ export default function RegistrationForm() {
 
             {/* Conditional Other Profession Input */}
             {form.profession === "Other" && (
-              <div className="animate-fade-in" data-error={!!errors.professionOther}>
+              <div
+                className="animate-fade-in"
+                data-error={!!errors.professionOther}
+              >
                 <InputField
                   label="Please Specify Your Profession"
                   name="professionOther"
@@ -748,11 +797,24 @@ export default function RegistrationForm() {
                   name="tShirtSize"
                   value={form.tShirtSize}
                   onChange={handleSelectChange("tShirtSize")}
-                  options={CLOTHING_SIZES}
+                  options={TSHIRT_SIZES}
                   placeholder="Select T-Shirt Size"
                   required
                   error={errors.tShirtSize}
                   icon="👕"
+                />
+              </div>
+              <div data-error={!!errors.pantSize}>
+                <SelectField
+                  label="Pant Size"
+                  name="pantSize"
+                  value={form.pantSize}
+                  onChange={handleSelectChange("pantSize")}
+                  options={PANT_SIZES}
+                  placeholder="Select Pant Size"
+                  required
+                  error={errors.pantSize}
+                  icon="👖"
                 />
               </div>
             </div>
@@ -794,34 +856,54 @@ export default function RegistrationForm() {
 
           {/* SECTION E: Payment Information */}
           <FormSection label="Payment Information" icon="💳" index={4}>
-            <PaymentQR />
+            {/* Payment Method */}
+            <SelectField
+              label="Payment Method"
+              name="paymentMethod"
+              value={form.paymentMethod}
+              onChange={handleSelectChange("paymentMethod")}
+              options={["Cash", "Online"]}
+              required
+              error={errors.paymentMethod}
+            />
 
-            <div data-error={!!errors.paymentScreenshot}>
-              <ImageUpload
-                label="Payment Screenshot"
-                name="paymentScreenshot"
-                onImageSelect={handleImageSelect("paymentScreenshot")}
-                previewUrl={screenshotPreview}
-                error={errors.paymentScreenshot}
-                icon="📲"
-                hint="Screenshot of completed UPI transaction showing reference / UTR — max 3 MB"
-                required
-              />
-            </div>
+            {/* Payment QR - Online only */}
+            {form.paymentMethod === "Online" && <PaymentQR />}
 
-            <div data-error={!!errors.transactionId}>
-              <InputField
-                label="Transaction ID / UTR"
-                name="transactionId"
-                value={form.transactionId}
-                onChange={handleChange("transactionId")}
-                placeholder="e.g. 412345678901 or TXN987654"
-                required
-                error={errors.transactionId}
-                icon="🔑"
-                hint="Unique transaction or UTR number from your payment app receipt"
-              />
-            </div>
+            {/* Receipt / Screenshot Upload - Both methods */}
+            <ImageUpload
+              label={
+                form.paymentMethod === "Cash"
+                  ? "Cash Payment Receipt Photo"
+                  : "Online Payment Screenshot"
+              }
+              name="paymentScreenshot"
+              onImageSelect={handleImageSelect("paymentScreenshot")}
+              previewUrl={screenshotPreview}
+              error={errors.paymentScreenshot}
+              icon="📸"
+              hint="Upload a clear photo of your payment receipt or online transaction screenshot."
+              required
+            />
+
+            {/* Receipt Number / Transaction ID */}
+            <InputField
+              label={
+                form.paymentMethod === "Cash"
+                  ? "Receipt Number"
+                  : "UPI / Transaction ID"
+              }
+              name="transactionId"
+              value={form.transactionId}
+              onChange={handleChange("transactionId")}
+              placeholder={
+                form.paymentMethod === "Cash"
+                  ? "Enter receipt number"
+                  : "Enter UPI transaction ID"
+              }
+              required
+              error={errors.transactionId}
+            />
           </FormSection>
 
           {/* Submit Button */}
@@ -878,9 +960,11 @@ export default function RegistrationForm() {
               className="text-center text-xs mt-3"
               style={{ color: "var(--color-text-dim)" }}
             >
-              By registering, you confirm all details provided are accurate and the payment has been completed.
+              By registering, you confirm all details provided are accurate and
+              the payment has been completed.
               <br />
-              All participants agree to abide by the rules and regulations of MPL 2026.
+              All participants agree to abide by the rules and regulations of
+              MPL 2026.
             </p>
           </div>
         </form>

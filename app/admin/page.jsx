@@ -441,6 +441,7 @@ export default function PlayersAdminPage() {
           "Player Category": p.playerCategory || "Not Available",
           "Player Pool": p.playerPool ?? "Not Available",
           "T-Shirt Size": p.tShirtSize || "Not Available",
+          "Pant Size": p.pantSize || "Not Available",
           "T-Shirt Number": p.tShirtNumber ?? "Not Available",
           "T-Shirt Name": p.tShirtName || "Not Available",
           "Transaction ID": p.transactionId || "Not Available",
@@ -530,6 +531,7 @@ export default function PlayersAdminPage() {
       playingStyle: Array.isArray(player.playingStyle) ? player.playingStyle : [],
       playerType: player.playerType || "",
       tShirtSize: player.tShirtSize || "",
+      pantSize: player.pantSize || "",
       tShirtNumber: player.tShirtNumber !== undefined ? String(player.tShirtNumber) : "",
       tShirtName: player.tShirtName || "",
     });
@@ -642,7 +644,7 @@ export default function PlayersAdminPage() {
       }
       if (!editForm.playerType) errs.playerType = "Player role is required";
       if (!editForm.tShirtSize) errs.tShirtSize = "T-shirt size is required";
-
+      if (!editForm.pantSize) errs.pantSize = "Pant size is required";
       if (editForm.previousTeam && !PREVIOUS_TEAMS.includes(editForm.previousTeam)) {
         errs.previousTeam = "Select a valid previous team";
       }
@@ -1084,6 +1086,28 @@ export default function PlayersAdminPage() {
                 </select>
                 {editErrors.tShirtSize && (
                   <span style={styles.errText}>{editErrors.tShirtSize}</span>
+                )}
+              </div>
+
+              {/* Pant Size */}
+              <div>
+                <label style={styles.inputLabel}>Pant Size *</label>
+                <select
+                  value={editForm.pantSize}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, pantSize: e.target.value })
+                  }
+                  style={styles.selectFull}
+                >
+                  <option value="">Select Size</option>
+                  {CLOTHING_SIZES.map((sz) => (
+                    <option key={sz} value={sz}>
+                      {sz}
+                    </option>
+                  ))}
+                </select>
+                {editErrors.pantSize && (
+                  <span style={styles.errText}>{editErrors.pantSize}</span>
                 )}
               </div>
 
@@ -1641,6 +1665,7 @@ export default function PlayersAdminPage() {
                 {/* 3. Merchandise Information */}
                 <Section title="Merchandise Information">
                   <Field label="T-Shirt Size" value={player.tShirtSize || "Not Available"} />
+                  <Field label="Pant Size" value={player.pantSize || "Not Available"} />
                   <Field
                     label="T-Shirt Number"
                     value={player.tShirtNumber !== undefined ? `#${player.tShirtNumber}` : "Not Available"}

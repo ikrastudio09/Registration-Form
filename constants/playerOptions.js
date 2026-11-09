@@ -87,14 +87,30 @@ export const PLAYING_STYLES = [
   "Left Arm Balling",
 ];
 
-export const CLOTHING_SIZES = [
-  "XS",
-  "S",
-  "M",
-  "L",
-  "XL",
-  "XXL",
-  "XXXL",
+export const TSHIRT_SIZES = [
+  "32",
+  "34",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48",
+];
+
+export const PANT_SIZES = [
+  "28",
+  "30",
+  "32",
+  "34",
+  "36",
+  "38",
+  "40",
+  "42",
+  "44",
+  "46",
+  "48",
 ];
 
 export const TSHIRT_NUMBER_MIN = 0;
