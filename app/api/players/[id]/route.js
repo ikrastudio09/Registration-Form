@@ -18,7 +18,8 @@ import {
   PROFESSIONS,
   PLAYER_ROLES,
   PLAYING_STYLES,
-  CLOTHING_SIZES,
+  TSHIRT_SIZES,
+  PANT_SIZES,
   PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
@@ -205,15 +206,15 @@ export async function PATCH(request, { params }) {
 
     // 12. Clothing Sizes
     if (body.tShirtSize !== undefined) {
-      if (!CLOTHING_SIZES.includes(body.tShirtSize)) {
-        return errorResponse(`Invalid T-shirt size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
+      if (!TSHIRT_SIZES.includes(body.tShirtSize)) {
+        return errorResponse(`Invalid T-shirt size. Must be one of: ${TSHIRT_SIZES.join(", ")}`, 400);
       }
       updateFields.tShirtSize = body.tShirtSize;
     }
 
     if (body.pantSize !== undefined) {
-      if (!CLOTHING_SIZES.includes(body.pantSize)) {
-        return errorResponse(`Invalid pant size. Must be one of: ${CLOTHING_SIZES.join(", ")}`, 400);
+      if (!PANT_SIZES.includes(body.pantSize)) {
+        return errorResponse(`Invalid pant size. Must be one of: ${PANT_SIZES.join(", ")}`, 400);
       }
       updateFields.pantSize = body.pantSize;
     }

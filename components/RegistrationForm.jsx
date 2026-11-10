@@ -52,6 +52,7 @@ const INITIAL_STATE = {
   pantSize: "",
   tShirtNumber: "",
   tShirtName: "",
+  practice: "23",
 };
 
 const INITIAL_ERRORS = {};
@@ -329,6 +330,19 @@ export default function RegistrationForm() {
       newErrors.pantSize = "Select a valid pant size";
     }
 
+    // Practice days (0–23)
+    const practiceDays = Number(form.practice);
+
+    if (
+      form.practice === "" ||
+      !Number.isInteger(practiceDays) ||
+      practiceDays < 0 ||
+      practiceDays > 23
+    ) {
+      newErrors.practice =
+        "Practice days must be a whole number between 0 and 23";
+    }
+
     // Merchandise: T-Shirt Number (0-99)
     if (
       form.tShirtNumber === "" ||
@@ -413,6 +427,7 @@ export default function RegistrationForm() {
       formData.append("playerPhoto", form.playerPhoto);
       formData.append("paymentScreenshot", form.paymentScreenshot);
       formData.append("paymentMethod", form.paymentMethod);
+      formData.append("practice", form.practice);
 
       const response = await axios.post("/api/register", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -903,6 +918,21 @@ export default function RegistrationForm() {
               }
               required
               error={errors.transactionId}
+            />
+
+            <InputField
+              label="Number of days available for practice"
+              name="practice"
+              type="number"
+              min="0"
+              max="23"
+              value={form.practice}
+              onChange={handleChange("practice")}
+              placeholder="e.g. 7, 18, 45"
+              required
+              error={errors.practice}
+              icon="🔢"
+              hint="Whole number between 0 and 23"
             />
           </FormSection>
 

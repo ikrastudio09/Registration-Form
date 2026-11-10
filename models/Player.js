@@ -9,7 +9,8 @@ import {
   PROFESSIONS,
   PLAYER_ROLES,
   PLAYING_STYLES,
-  CLOTHING_SIZES,
+  TSHIRT_SIZES,
+  PANT_SIZES,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
 } from "../constants/playerOptions";
@@ -204,7 +205,7 @@ const PlayerSchema = new mongoose.Schema(
       type: String,
       required: [true, "T-shirt size is required"],
       enum: {
-        values: CLOTHING_SIZES,
+        values: TSHIRT_SIZES,
         message: "{VALUE} is not a valid clothing size",
       },
     },
@@ -213,7 +214,7 @@ const PlayerSchema = new mongoose.Schema(
       type: String,
       required: [true, "Pant size is required"],
       enum: {
-        values: CLOTHING_SIZES,
+        values: PANT_SIZES,
         message: "{VALUE} is not a valid clothing size",
       },
     },
@@ -279,6 +280,17 @@ const PlayerSchema = new mongoose.Schema(
       unique: true,
       trim: true,
       uppercase: true,
+    },
+
+    practice: {
+      type: Number,
+      min: 0,
+      max: 23,
+      validate: {
+        validator: Number.isInteger,
+        message: "Practice days must be a whole number.",
+      },
+      default: 23,
     },
 
     // Registration status

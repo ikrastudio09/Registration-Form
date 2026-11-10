@@ -20,7 +20,8 @@ import {
   PROFESSIONS,
   PLAYER_ROLES,
   PLAYING_STYLES,
-  CLOTHING_SIZES,
+  TSHIRT_SIZES,
+  PANT_SIZES,
   PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
@@ -104,7 +105,21 @@ export async function POST(request) {
     const playerPhoto = formData.get("playerPhoto");
     const paymentScreenshot = formData.get("paymentScreenshot");
     const paymentMethod = formData.get("paymentMethod");
+    const practiceRaw = formData.get("practice");
+    const practice = Number(practiceRaw);
 
+    if (
+      practiceRaw === null ||
+      practiceRaw.trim() === "" ||
+      !Number.isInteger(practice) ||
+      practice < 0 ||
+      practice > 23
+    ) {
+      return errorResponse(
+        "Practice days must be a whole number between 0 and 23.",
+        400,
+      );
+    }
     // 4. Validate Required Fields
     const requiredCheck = validateRequiredFields(
       {
@@ -267,16 +282,16 @@ export async function POST(request) {
     }
 
     // Clothing size validation
-    if (!CLOTHING_SIZES.includes(tShirtSize)) {
+    if (!TSHIRT_SIZES.includes(tShirtSize)) {
       return errorResponse(
-        `Invalid T-shirt size. Must be one of: ${CLOTHING_SIZES.join(", ")}`,
+        `Invalid T-shirt size. Must be one of: ${TSHIRT_SIZES.join(", ")}`,
         400,
       );
     }
 
-    if (!CLOTHING_SIZES.includes(pantSize)) {
+    if (!PANT_SIZES.includes(pantSize)) {
       return errorResponse(
-        `Invalid pant size. Must be one of: ${CLOTHING_SIZES.join(", ")}`,
+        `Invalid pant size. Must be one of: ${PANT_SIZES.join(", ")}`,
         400,
       );
     }
@@ -396,6 +411,7 @@ export async function POST(request) {
         paymentMethod,
         paymentScreenshot: paymentScreenshotData,
         transactionId,
+        practice,
         playerAddress: [
           {
             AddressLine1: addressLine1,

@@ -7,7 +7,8 @@ import {
   PROFESSIONS,
   PLAYER_ROLES,
   PLAYING_STYLES,
-  CLOTHING_SIZES,
+  TSHIRT_SIZES,
+  PANT_SIZES,
   PREVIOUS_TEAMS,
   TSHIRT_NUMBER_MIN,
   TSHIRT_NUMBER_MAX,
@@ -445,6 +446,7 @@ export default function PlayersAdminPage() {
           "T-Shirt Number": p.tShirtNumber ?? "Not Available",
           "T-Shirt Name": p.tShirtName || "Not Available",
           "Transaction ID": p.transactionId || "Not Available",
+          "Practice Availabilty": p.practice || "Not Available",
           "Registration Status": p.status || "Not Available",
           "Registration Date": p.createdAt
             ? new Date(p.createdAt).toLocaleString("en-IN")
@@ -480,6 +482,7 @@ export default function PlayersAdminPage() {
         { wch: 14 }, // T-Shirt Number
         { wch: 16 }, // T-Shirt Name
         { wch: 22 }, // Transaction ID
+        { wch: 12 }, // Transaction ID
         { wch: 14 }, // Status
         { wch: 22 }, // Registered Date
       ];
@@ -534,6 +537,7 @@ export default function PlayersAdminPage() {
       pantSize: player.pantSize || "",
       tShirtNumber: player.tShirtNumber !== undefined ? String(player.tShirtNumber) : "",
       tShirtName: player.tShirtName || "",
+      practice: player.practice || "",
     });
 
     const [quickImportText, setQuickImportText] = useState("");
@@ -1078,7 +1082,7 @@ export default function PlayersAdminPage() {
                   style={styles.selectFull}
                 >
                   <option value="">Select Size</option>
-                  {CLOTHING_SIZES.map((sz) => (
+                  {TSHIRT_SIZES.map((sz) => (
                     <option key={sz} value={sz}>
                       {sz}
                     </option>
@@ -1100,7 +1104,7 @@ export default function PlayersAdminPage() {
                   style={styles.selectFull}
                 >
                   <option value="">Select Size</option>
-                  {CLOTHING_SIZES.map((sz) => (
+                  {PANT_SIZES.map((sz) => (
                     <option key={sz} value={sz}>
                       {sz}
                     </option>
@@ -1147,6 +1151,21 @@ export default function PlayersAdminPage() {
                 {editErrors.tShirtName && (
                   <span style={styles.errText}>{editErrors.tShirtName}</span>
                 )}
+              </div>
+
+              {/* Practice */}
+              <div>
+                <label style={styles.inputLabel}>Available for practice *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={editForm.practice}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, practice: e.target.value })
+                  }
+                  style={styles.input}
+                />
               </div>
 
               {/* Tournament Performance & Season History */}
@@ -1689,6 +1708,14 @@ export default function PlayersAdminPage() {
                         ? new Date(player.createdAt).toLocaleString("en-IN")
                         : "—"
                     }
+                  />
+                </Section>
+                
+                <Section title="Practice Availability">
+                  <Field
+                    label="Days available for practice"
+                    value={player.practice !== undefined ? `#${player.practice}` : "Not Available"}
+                    mono
                   />
                 </Section>
               </div>
