@@ -39,7 +39,7 @@ export async function GET(request, { params }) {
           "fatherName motherName profession professionOther previousTeam playerAddress " +
           "previousPoints previousPerformance " +
           "playerPhoto.url playingStyle playerType playerPool playerCategory " +
-          "tShirtSize pantSize tShirtNumber tShirtName " +
+          "tShirtSize pantSize tShirtNumber tShirtName paymentMethod practice " +
           "paymentScreenshot.url transactionId status Age createdAt updatedAt",
       )
       .lean();
@@ -342,6 +342,48 @@ export async function PATCH(request, { params }) {
       }));
     }
 
+    // 18. Practice Days
+    if (body.practice !== undefined) {
+      const prac = Number(body.practice);
+      if (!Number.isInteger(prac) || prac < 0 || prac > 23) {
+        return errorResponse(
+          "Practice days must be a whole number between 0 and 23.",
+          400,
+        );
+      }
+      updateFields.practice = prac;
+    }
+
+    // 19. Payment Method
+    if (body.paymentMethod !== undefined) {
+      if (!["Cash", "Online"].includes(body.paymentMethod)) {
+        return errorResponse("Payment method must be 'Cash' or 'Online'.", 400);
+      }
+      updateFields.paymentMethod = body.paymentMethod;
+    }
+
+    // 20. Player Pool
+    if (body.playerPool !== undefined) {
+      const poolNum = Number(body.playerPool);
+      if (isNaN(poolNum)) {
+        return errorResponse("Player pool must be a valid number.", 400);
+      }
+      updateFields.playerPool = poolNum;
+    }
+
+    // 21. Player Category
+    if (body.playerCategory !== undefined) {
+      updateFields.playerCategory = String(body.playerCategory).trim() || "Undefined";
+    }
+
+    // 22. Status
+    if (body.status !== undefined) {
+      if (!["pending", "approved", "rejected"].includes(body.status)) {
+        return errorResponse("Invalid registration status.", 400);
+      }
+      updateFields.status = body.status;
+    }
+
     // Update document while preserving playerID, status, pool, category, photo, etc.
     const updatedPlayerRaw = await Player.findByIdAndUpdate(
       id,
@@ -353,7 +395,7 @@ export async function PATCH(request, { params }) {
           "fatherName motherName profession professionOther previousTeam playerAddress " +
           "previousPoints previousPerformance " +
           "playerPhoto.url playingStyle playerType playerPool playerCategory " +
-          "tShirtSize pantSize tShirtNumber tShirtName " +
+          "tShirtSize pantSize tShirtNumber tShirtName paymentMethod practice " +
           "paymentScreenshot.url transactionId status Age createdAt updatedAt",
       )
       .lean();
@@ -371,5 +413,20 @@ export async function PATCH(request, { params }) {
       return errorResponse(parsed.message, parsed.status, parsed.errors);
     }
     return errorResponse("Failed to update player information.", 500);
+  }
+}
+
+export async function DELETE(request, { params }) {
+  try {
+    await connectDB();
+    const { id } = await params;
+    const player = await Player.findByIdAndDelete(id);
+    if (!player) {
+      return errorResponse("Player not found.", 404);
+    }
+    return successResponse({ id }, "Player deleted successfully.");
+  } catch (error) {
+    console.error("Delete player error:", error);
+    return errorResponse("Failed to delete player.", 500);
   }
 }

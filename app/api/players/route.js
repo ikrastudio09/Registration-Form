@@ -28,6 +28,7 @@ export async function GET(request) {
     const playerCategory = searchParams.get("playerCategory");
     const playerPool = searchParams.get("playerPool");
     const profession = searchParams.get("profession");
+    const paymentMethod = searchParams.get("paymentMethod");
 
     // Sorting
     const sortField = searchParams.get("sortField") || "createdAt";
@@ -41,6 +42,7 @@ export async function GET(request) {
     if (playingStyle) query.playingStyle = { $in: [playingStyle] };
     if (playerCategory) query.playerCategory = playerCategory;
     if (profession) query.profession = profession;
+    if (paymentMethod) query.paymentMethod = paymentMethod;
     if (playerPool !== null && playerPool !== undefined && playerPool !== "") {
       query.playerPool = Number(playerPool);
     }
@@ -53,9 +55,10 @@ export async function GET(request) {
         { transactionId: { $regex: trimmedSearch, $options: "i" } },
       ];
 
-      // If search is numeric, also search playerID and tShirtNumber
-      const numericVal = Number(trimmedSearch);
-      if (!isNaN(numericVal)) {
+      // If search is numeric (or prefixed with #), also search playerID and tShirtNumber
+      const cleanNum = trimmedSearch.replace(/^#\s*/, "");
+      const numericVal = Number(cleanNum);
+      if (!isNaN(numericVal) && cleanNum !== "") {
         orConditions.push({ playerID: numericVal });
         orConditions.push({ tShirtNumber: numericVal });
       }
@@ -80,15 +83,27 @@ export async function GET(request) {
     ];
     const safeSortField = allowedSortFields.includes(sortField) ? sortField : "createdAt";
 
-    // Execute query with pagination
-    const [playersRaw, total] = await Promise.all([
+    // Execute query with pagination and status counts
+    const [
+      playersRaw,
+      total,
+      totalAll,
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      batsmenCount,
+      bowlersCount,
+      allRoundersCount,
+      onlineCount,
+      cashCount,
+    ] = await Promise.all([
       Player.find(query)
         .select(
           "playerID playerName playerPhone dateOfBirth anniversary bloodGroup " +
             "fatherName motherName profession professionOther previousTeam playerAddress " +
             "previousPoints previousPerformance " +
             "playerPhoto.url playingStyle playerType playerPool playerCategory " +
-            "tShirtSize pantSize tShirtNumber tShirtName " +
+            "tShirtSize pantSize tShirtNumber tShirtName paymentMethod practice " +
             "paymentScreenshot.url transactionId status Age createdAt updatedAt",
         )
         .sort({ [safeSortField]: sortOrder })
@@ -96,6 +111,15 @@ export async function GET(request) {
         .limit(limit)
         .lean(),
       Player.countDocuments(query),
+      Player.countDocuments({}),
+      Player.countDocuments({ status: "pending" }),
+      Player.countDocuments({ status: "approved" }),
+      Player.countDocuments({ status: "rejected" }),
+      Player.countDocuments({ playerType: "Batsman" }),
+      Player.countDocuments({ playerType: "Bowler" }),
+      Player.countDocuments({ playerType: "All Rounder" }),
+      Player.countDocuments({ paymentMethod: "Online" }),
+      Player.countDocuments({ paymentMethod: "Cash" }),
     ]);
 
     // Attach calculated age dynamically while preserving historical Age fallback
@@ -114,7 +138,18 @@ export async function GET(request) {
         hasNext: page * limit < total,
         hasPrev: page > 1,
       },
-      filters: { status, playerType, playingStyle, playerCategory, playerPool, profession, search },
+      stats: {
+        total: totalAll,
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+        batsmen: batsmenCount,
+        bowlers: bowlersCount,
+        allRounders: allRoundersCount,
+        online: onlineCount,
+        cash: cashCount,
+      },
+      filters: { status, playerType, playingStyle, playerCategory, playerPool, profession, paymentMethod, search },
     });
   } catch (error) {
     console.error("Fetch players error:", error);

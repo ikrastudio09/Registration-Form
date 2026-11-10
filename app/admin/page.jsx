@@ -16,14 +16,16 @@ import {
 } from "../../constants/playerOptions";
 import { calculateAge } from "../../utils/apiHelpers";
 
-/* ─── styling constants ─────────────────────────────────────── */
+/* ─── Status Badges & Colors ────────────────────────────────── */
 const STATUS_COLORS = {
-  pending: { bg: "#FFF8E1", text: "#D97706", border: "#FDE68A" },
-  approved: { bg: "#ECFDF5", text: "#059669", border: "#A7F3D0" },
-  rejected: { bg: "#FEF2F2", text: "#DC2626", border: "#FECACA" },
+  pending: { bg: "#FEF3C7", text: "#D97706", border: "#FDE68A" },
+  approved: { bg: "#D1FAE5", text: "#059669", border: "#A7F3D0" },
+  rejected: { bg: "#FEE2E2", text: "#DC2626", border: "#FECACA" },
 };
 
 const STATUS_OPTIONS = ["pending", "approved", "rejected"];
+const PAYMENT_METHODS = ["Online", "Cash"];
+const PLAYER_POOLS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 function Badge({ status }) {
   const c = STATUS_COLORS[status] || STATUS_COLORS.pending;
@@ -34,7 +36,7 @@ function Badge({ status }) {
         color: c.text,
         border: `1px solid ${c.border}`,
         borderRadius: 20,
-        padding: "3px 12px",
+        padding: "4px 12px",
         fontSize: 11,
         fontWeight: 700,
         letterSpacing: "0.04em",
@@ -47,7 +49,7 @@ function Badge({ status }) {
   );
 }
 
-function Avatar({ src, name, size = 40 }) {
+function Avatar({ src, name, size = 38 }) {
   const [err, setErr] = useState(false);
   if (!src || err) {
     return (
@@ -56,13 +58,13 @@ function Avatar({ src, name, size = 40 }) {
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "linear-gradient(135deg, #1E3A8A, #3B82F6)",
+          background: "linear-gradient(135deg, #3B82F6, #1E40AF)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: "#fff",
           fontWeight: 700,
-          fontSize: size * 0.35,
+          fontSize: size * 0.38,
           flexShrink: 0,
         }}
       >
@@ -82,28 +84,48 @@ function Avatar({ src, name, size = 40 }) {
         borderRadius: "50%",
         objectFit: "cover",
         flexShrink: 0,
-        border: "2px solid #E2E8F0",
+        border: "1.5px solid #E2E8F0",
       }}
     />
   );
 }
 
-// Format date helper with fallback
 function formatDate(d) {
   if (!d) return "Not Available";
   const date = new Date(d);
   if (isNaN(date.getTime())) return "Not Available";
   return date.toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "short",
     day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 }
 
-// Parse previous performance string format: "2025 :- M:5, R:120, W:3, F:2 | 2024 :- M:4, R:80, W:1, F:1"
+function formatShortDate(d) {
+  if (!d) return "—";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-GB"); // DD/MM/YYYY
+}
+
+function formatDateTime(d) {
+  if (!d) return "Not Available";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "Not Available";
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
+// Parse previous performance string format
 function parsePreviousPerformance(recordString) {
   if (!recordString || recordString === "N/A") return [];
-
   return recordString
     .split("|")
     .map((s) => s.trim())
@@ -111,10 +133,8 @@ function parsePreviousPerformance(recordString) {
     .map((season) => {
       const match = season.match(/(\d{4})\s*:-\s*(.*)/);
       if (!match) return null;
-
       const year = Number(match[1]);
       const statsPart = match[2];
-
       const data = {
         year,
         matches: 0,
@@ -126,11 +146,9 @@ function parsePreviousPerformance(recordString) {
         strikeRate: 0,
         economy: 0,
       };
-
       statsPart.split(",").forEach((pair) => {
         const [k, v] = pair.split(":").map((x) => x?.trim());
         const value = Number(v) || 0;
-
         if (k === "M") data.matches = value;
         if (k === "R") data.runs = value;
         if (k === "W") data.wickets = value;
@@ -140,13 +158,11 @@ function parsePreviousPerformance(recordString) {
         if (k === "SR") data.strikeRate = value;
         if (k === "ECON") data.economy = value;
       });
-
       return data;
     })
     .filter(Boolean);
 }
 
-// Format previous performance array to summary string
 function formatPerformanceSummary(perfArray) {
   if (!Array.isArray(perfArray) || perfArray.length === 0) return "Not Available";
   return perfArray
@@ -158,7 +174,7 @@ function formatPerformanceSummary(perfArray) {
 }
 
 /* ─── Searchable Select for Admin ───────────────────────────── */
-function AdminSearchableSelect({ value, onChange, options, placeholder = "Select profession" }) {
+function AdminSearchableSelect({ value, onChange, options, placeholder = "Select standard/profession" }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef(null);
@@ -265,7 +281,7 @@ function AdminSearchableSelect({ value, onChange, options, placeholder = "Select
 export default function PlayersAdminPage() {
   /* state */
   const [players, setPlayers] = useState([]);
-  const [pagination, setPagination] = useState({});
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 20, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState("");
   const [selectedPlayer, setSelected] = useState(null);
@@ -273,90 +289,98 @@ export default function PlayersAdminPage() {
   const [toast, setToast] = useState(null);
   const [lightboxImg, setLightboxImg] = useState(null);
 
-  /* filters */
+  /* search & debounced search */
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  /* filters */
   const [filterStatus, setFStatus] = useState("");
   const [filterType, setFType] = useState("");
-  const [filterPool, setFPool] = useState("");
   const [filterProfession, setFProfession] = useState("");
+  const [filterPool, setFPool] = useState("");
+  const [filterPayment, setFPayment] = useState("");
+
+  /* sorting */
+  const [sortField, setSortField] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  /* pagination */
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  /* stats */
+  /* 8 Stats Cards from reference screenshot */
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     approved: 0,
     rejected: 0,
+    batsmen: 0,
+    bowlers: 0,
+    allRounders: 0,
+    online: 0,
+    cash: 0,
   });
-  const debounceRef = useRef(null);
 
-  /* ── fetch ── */
-  const fetchPlayers = useCallback(
-    async (overrides = {}) => {
-      setLoading(true);
-      const targetPage = overrides.page ?? page;
-      const targetSearch = overrides.search !== undefined ? overrides.search : search;
-      const targetStatus = overrides.filterStatus !== undefined ? overrides.filterStatus : filterStatus;
-      const targetType = overrides.filterType !== undefined ? overrides.filterType : filterType;
-      const targetPool = overrides.filterPool !== undefined ? overrides.filterPool : filterPool;
-      const targetProf = overrides.filterProfession !== undefined ? overrides.filterProfession : filterProfession;
+  // Debounce search input by 350ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-      const params = new URLSearchParams({
-        page: targetPage.toString(),
-        limit: limit.toString(),
-        ...(targetSearch && { search: targetSearch }),
-        ...(targetStatus && { status: targetStatus }),
-        ...(targetType && { playerType: targetType }),
-        ...(targetPool && { playerPool: targetPool }),
-        ...(targetProf && { profession: targetProf }),
-      });
+  /* ── fetch players ── */
+  const fetchPlayers = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      sortField,
+      sortOrder,
+      ...(debouncedSearch && { search: debouncedSearch }),
+      ...(filterStatus && { status: filterStatus }),
+      ...(filterType && { playerType: filterType }),
+      ...(filterProfession && { profession: filterProfession }),
+      ...(filterPool !== "" && { playerPool: filterPool }),
+      ...(filterPayment && { paymentMethod: filterPayment }),
+    });
 
-      try {
-        const r = await fetch(`/api/players?${params.toString()}`);
-        const data = await r.json();
-        if (data.success) {
-          setPlayers(data.data.players);
+    try {
+      const r = await fetch(`/api/players?${params.toString()}`);
+      const data = await r.json();
+      if (data.success) {
+        setPlayers(data.data.players || []);
+        if (data.data.pagination) {
           setPagination(data.data.pagination);
-
-          // Update summary stats from non-filtered total when on initial view
-          if (!targetStatus && !targetType && !targetPool && !targetProf && !targetSearch && targetPage === 1) {
-            const allR = await fetch(`/api/players?limit=10000`);
-            const allD = await allR.json();
-            if (allD.success) {
-              const all = allD.data.players;
-              setStats({
-                total: all.length,
-                pending: all.filter((p) => p.status === "pending").length,
-                approved: all.filter((p) => p.status === "approved").length,
-                rejected: all.filter((p) => p.status === "rejected").length,
-              });
-            }
-          }
-        } else {
-          showToast(data.message || "Failed to fetch players", "error");
         }
-      } catch {
-        showToast("Network error while fetching players", "error");
-      } finally {
-        setLoading(false);
+        if (data.data.stats) {
+          setStats(data.data.stats);
+        }
+      } else {
+        showToast(data.message || "Failed to fetch players", "error");
       }
-    },
-    [page, limit, search, filterStatus, filterType, filterPool, filterProfession],
-  );
+    } catch {
+      showToast("Network error while fetching players", "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    page,
+    limit,
+    debouncedSearch,
+    filterStatus,
+    filterType,
+    filterProfession,
+    filterPool,
+    filterPayment,
+    sortField,
+    sortOrder,
+  ]);
 
   useEffect(() => {
     fetchPlayers();
   }, [fetchPlayers]);
-
-  useEffect(() => {
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setPage(1);
-      fetchPlayers({ page: 1, search });
-    }, 350);
-    return () => clearTimeout(debounceRef.current);
-  }, [search, fetchPlayers]);
 
   /* ── toast ── */
   const showToast = (msg, type = "success") => {
@@ -374,21 +398,49 @@ export default function PlayersAdminPage() {
       });
       const data = await r.json();
       if (data.success) {
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p._id === playerId ? { ...p, status: newStatus } : p,
-          ),
-        );
-        if (selectedPlayer?._id === playerId) {
-          setSelected((prev) => ({ ...prev, status: newStatus }));
-        }
         showToast(`Status updated to "${newStatus}"`);
+        fetchPlayers();
+        if (selectedPlayer?._id === playerId && data.data?.player) {
+          setSelected(data.data.player);
+        }
       } else {
         showToast(data.message || "Status update failed", "error");
       }
     } catch {
       showToast("Network error updating status", "error");
     }
+  };
+
+  /* ── delete player ── */
+  const deletePlayer = async (playerId, playerName) => {
+    if (!window.confirm(`Are you sure you want to delete "${playerName || "this player"}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const r = await fetch(`/api/players/${playerId}`, { method: "DELETE" });
+      const data = await r.json();
+      if (data.success) {
+        showToast("Player deleted successfully");
+        if (selectedPlayer?._id === playerId) setSelected(null);
+        if (editingPlayer?._id === playerId) setEditingPlayer(null);
+        fetchPlayers();
+      } else {
+        showToast(data.message || "Delete failed", "error");
+      }
+    } catch {
+      showToast("Network error deleting player", "error");
+    }
+  };
+
+  /* ── sort handler ── */
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+    setPage(1);
   };
 
   /* ── fetch ALL for export (no pagination) ── */
@@ -398,7 +450,7 @@ export default function PlayersAdminPage() {
     return d.success ? d.data.players : players;
   };
 
-  /* ─── Excel Export (25 Comprehensive Fields) ──────────────── */
+  /* ─── Excel Export (26 Fields) ────────────────────────────── */
   const exportExcel = async () => {
     setExporting("excel");
     try {
@@ -415,8 +467,10 @@ export default function PlayersAdminPage() {
           "Blood Group": p.bloodGroup || "Not Available",
           "Father's Name": p.fatherName || "Not Available",
           "Mother's Name": p.motherName || "Not Available",
-          Profession: p.profession || "Not Available",
-          "Custom Profession": p.professionOther || "Not Available",
+          "Standard / Profession":
+            p.profession === "Other" && p.professionOther
+              ? p.professionOther
+              : p.profession || "Not Available",
           "Previous Team": p.previousTeam || "Not Available",
           "Previous Points":
             p.previousPoints !== undefined && p.previousPoints !== null
@@ -425,72 +479,54 @@ export default function PlayersAdminPage() {
           "Previous Performance": formatPerformanceSummary(p.previousPerformance),
           "Residential Address":
             Array.isArray(p.playerAddress) && p.playerAddress[0]
-              ? `${p.playerAddress[0].AddressLine1 || ""}${
-                  p.playerAddress[0].AddressLine2
-                    ? ", " + p.playerAddress[0].AddressLine2
-                    : ""
-                }, ${p.playerAddress[0].City || ""}, ${
-                  p.playerAddress[0].State || ""
-                } - ${p.playerAddress[0].PinCode || ""}, ${
-                  p.playerAddress[0].Country || "India"
-                }`
+              ? [
+                  p.playerAddress[0].AddressLine1,
+                  p.playerAddress[0].AddressLine2,
+                  p.playerAddress[0].City,
+                  p.playerAddress[0].State,
+                  p.playerAddress[0].PinCode,
+                  p.playerAddress[0].Country || "India",
+                ]
+                  .filter(Boolean)
+                  .join(", ")
               : "Not Available",
           "Playing Style": Array.isArray(p.playingStyle)
             ? p.playingStyle.join(", ")
             : p.playingStyle || "Not Available",
           "Player Role": p.playerType || "Not Available",
-          "Player Category": p.playerCategory || "Not Available",
-          "Player Pool": p.playerPool ?? "Not Available",
+          "Player Category": p.playerCategory || "Undefined",
+          "Player Pool": p.playerPool ?? 0,
           "T-Shirt Size": p.tShirtSize || "Not Available",
           "Pant Size": p.pantSize || "Not Available",
           "T-Shirt Number": p.tShirtNumber ?? "Not Available",
           "T-Shirt Name": p.tShirtName || "Not Available",
-          "Transaction ID": p.transactionId || "Not Available",
-          "Practice Availabilty": p.practice || "Not Available",
+          "Payment Method": p.paymentMethod || "Not Available",
+          "Transaction ID": p.transactionId ? String(p.transactionId) : "Not Available",
+          "Practice Availability":
+            p.practice !== undefined && p.practice !== null
+              ? `${p.practice} days`
+              : "Not Available",
           "Registration Status": p.status || "Not Available",
           "Registration Date": p.createdAt
-            ? new Date(p.createdAt).toLocaleString("en-IN")
+            ? formatDateTime(p.createdAt)
             : "Not Available",
         };
       });
 
       const ws = XLSX.utils.json_to_sheet(rows);
-
-      /* Column widths */
       ws["!cols"] = [
-        { wch: 10 }, // Player ID
-        { wch: 22 }, // Full Name
-        { wch: 15 }, // Mobile
-        { wch: 15 }, // DOB
-        { wch: 14 }, // Age
-        { wch: 18 }, // Anniversary
-        { wch: 12 }, // Blood Group
-        { wch: 20 }, // Father's Name
-        { wch: 20 }, // Mother's Name
-        { wch: 28 }, // Profession
-        { wch: 22 }, // Custom Profession
-        { wch: 18 }, // Previous Team
-        { wch: 16 }, // Previous Points
-        { wch: 45 }, // Previous Performance
-        { wch: 35 }, // Residential Address
-        { wch: 28 }, // Playing Style
-        { wch: 14 }, // Role
-        { wch: 14 }, // Category
-        { wch: 12 }, // Pool
-        { wch: 12 }, // T-Shirt Size
-        { wch: 12 }, // Pant Size
-        { wch: 14 }, // T-Shirt Number
-        { wch: 16 }, // T-Shirt Name
-        { wch: 22 }, // Transaction ID
-        { wch: 12 }, // Transaction ID
-        { wch: 14 }, // Status
-        { wch: 22 }, // Registered Date
+        { wch: 10 }, { wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 14 },
+        { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 24 },
+        { wch: 18 }, { wch: 16 }, { wch: 45 }, { wch: 35 }, { wch: 28 },
+        { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+        { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 22 }, { wch: 20 },
+        { wch: 14 }, { wch: 22 },
       ];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "MPL 2026 Players");
-      XLSX.writeFile(wb, `MPL_2026_Players_${Date.now()}.xlsx`);
-      showToast("Excel exported successfully with all 25 fields!");
+      XLSX.utils.book_append_sheet(wb, ws, "MPL Kids 2026 Players");
+      XLSX.writeFile(wb, `MPL_Kids_2026_Players_${Date.now()}.xlsx`);
+      showToast("Excel exported successfully with all 26 fields!");
     } catch (e) {
       console.error("Export error:", e);
       showToast("Excel export failed", "error");
@@ -498,6 +534,32 @@ export default function PlayersAdminPage() {
       setExporting("");
     }
   };
+
+  /* ─── Clear All Filters ────────────────────────────────────── */
+  const clearAllFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setFStatus("");
+    setFType("");
+    setFProfession("");
+    setFPool("");
+    setFPayment("");
+    setSortField("createdAt");
+    setSortOrder("desc");
+    setPage(1);
+  };
+
+  const hasActiveFilters = Boolean(
+    search ||
+      debouncedSearch ||
+      filterStatus ||
+      filterType ||
+      filterProfession ||
+      filterPool !== "" ||
+      filterPayment ||
+      sortField !== "createdAt" ||
+      sortOrder !== "desc"
+  );
 
   /* ─── Player Edit Modal Component ────────────────────────── */
   const PlayerEditModal = ({ player, onClose, onSaveSuccess }) => {
@@ -533,11 +595,14 @@ export default function PlayersAdminPage() {
       country: initialAddr.Country || "India",
       playingStyle: Array.isArray(player.playingStyle) ? player.playingStyle : [],
       playerType: player.playerType || "",
+      playerPool: player.playerPool !== undefined ? String(player.playerPool) : "0",
+      playerCategory: player.playerCategory || "Undefined",
       tShirtSize: player.tShirtSize || "",
       pantSize: player.pantSize || "",
       tShirtNumber: player.tShirtNumber !== undefined ? String(player.tShirtNumber) : "",
       tShirtName: player.tShirtName || "",
-      practice: player.practice || "",
+      practice: player.practice !== undefined && player.practice !== null ? String(player.practice) : "23",
+      paymentMethod: player.paymentMethod || "Online",
     });
 
     const [quickImportText, setQuickImportText] = useState("");
@@ -608,25 +673,14 @@ export default function PlayersAdminPage() {
         previousPerformance: [...prev.previousPerformance, ...parsed],
       }));
       setQuickImportText("");
-      showToast(`Added ${parsed.length} season record(s) from text!`);
+      showToast(`Added ${parsed.length} season record(s)!`);
     };
-
-    const cumulativeTotals = editForm.previousPerformance.reduce(
-      (acc, s) => ({
-        matches: acc.matches + (Number(s.matches) || 0),
-        runs: acc.runs + (Number(s.runs) || 0),
-        wickets: acc.wickets + (Number(s.wickets) || 0),
-        fielding: acc.fielding + (Number(s.fielding) || 0),
-        mom: acc.mom + (Number(s.mom) || 0),
-      }),
-      { matches: 0, runs: 0, wickets: 0, fielding: 0, mom: 0 }
-    );
 
     const handleSave = async (e) => {
       e.preventDefault();
       const errs = {};
 
-      if (!editForm.playerName.trim()) errs.playerName = "Name is required";
+      if (!editForm.playerName.trim()) errs.playerName = "Full name is required";
       if (!/^[6-9]\d{9}$/.test(editForm.playerPhone.trim())) {
         errs.playerPhone = "10-digit mobile starting with 6-9 required";
       }
@@ -634,14 +688,7 @@ export default function PlayersAdminPage() {
       if (!editForm.bloodGroup) errs.bloodGroup = "Blood Group required";
       if (!editForm.fatherName.trim()) errs.fatherName = "Father's name required";
       if (!editForm.motherName.trim()) errs.motherName = "Mother's name required";
-      if (!editForm.profession) errs.profession = "Profession is required";
-      if (editForm.profession === "Other" && !editForm.professionOther.trim()) {
-        errs.professionOther = "Custom profession required when Other is selected";
-      }
-      if (!editForm.addressLine1.trim()) errs.addressLine1 = "Address Line 1 is required";
-      if (!editForm.city.trim()) errs.city = "City is required";
-      if (!editForm.state.trim()) errs.state = "State is required";
-      if (!editForm.pinCode.trim()) errs.pinCode = "Pin Code is required";
+      if (!editForm.profession) errs.profession = "Standard / Profession is required";
 
       if (!editForm.playingStyle || editForm.playingStyle.length === 0) {
         errs.playingStyle = "Select 1 to 2 playing styles";
@@ -649,23 +696,32 @@ export default function PlayersAdminPage() {
       if (!editForm.playerType) errs.playerType = "Player role is required";
       if (!editForm.tShirtSize) errs.tShirtSize = "T-shirt size is required";
       if (!editForm.pantSize) errs.pantSize = "Pant size is required";
-      if (editForm.previousTeam && !PREVIOUS_TEAMS.includes(editForm.previousTeam)) {
-        errs.previousTeam = "Select a valid previous team";
-      }
 
       const prevPointsVal =
         editForm.previousPoints.trim() === ""
           ? null
           : Number(editForm.previousPoints);
-      if (editForm.previousPoints.trim() !== "" && isNaN(prevPointsVal)) {
-        errs.previousPoints = "Points must be a valid number";
-      }
 
       const num = Number(editForm.tShirtNumber);
-      if (editForm.tShirtNumber === "" || !Number.isInteger(num) || num < TSHIRT_NUMBER_MIN || num > TSHIRT_NUMBER_MAX) {
+      if (
+        editForm.tShirtNumber === "" ||
+        !Number.isInteger(num) ||
+        num < TSHIRT_NUMBER_MIN ||
+        num > TSHIRT_NUMBER_MAX
+      ) {
         errs.tShirtNumber = `Number between ${TSHIRT_NUMBER_MIN} and ${TSHIRT_NUMBER_MAX} required`;
       }
       if (!editForm.tShirtName.trim()) errs.tShirtName = "T-shirt name is required";
+
+      const practiceNum = Number(editForm.practice);
+      if (
+        editForm.practice === "" ||
+        !Number.isInteger(practiceNum) ||
+        practiceNum < 0 ||
+        practiceNum > 23
+      ) {
+        errs.practice = "Practice days must be an integer between 0 and 23";
+      }
 
       if (Object.keys(errs).length > 0) {
         setEditErrors(errs);
@@ -674,35 +730,42 @@ export default function PlayersAdminPage() {
 
       setSaving(true);
       try {
+        const payload = {
+          ...editForm,
+          previousPoints: prevPointsVal,
+          previousPerformance: editForm.previousPerformance.map((s) => ({
+            year: Number(s.year) || 0,
+            matches: Number(s.matches) || 0,
+            runs: Number(s.runs) || 0,
+            wickets: Number(s.wickets) || 0,
+            fielding: Number(s.fielding) || 0,
+            mom: Number(s.mom) || 0,
+            battingAvg: Number(s.battingAvg) || 0,
+            strikeRate: Number(s.strikeRate) || 0,
+            economy: Number(s.economy) || 0,
+          })),
+          tShirtNumber: num,
+          tShirtName: editForm.tShirtName.trim().toUpperCase(),
+          practice: practiceNum,
+          playerPool: Number(editForm.playerPool) || 0,
+          playerCategory: editForm.playerCategory.trim() || "Undefined",
+          paymentMethod: editForm.paymentMethod,
+        };
+
         const res = await fetch(`/api/players/${player._id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...editForm,
-            previousPoints: prevPointsVal,
-            previousPerformance: editForm.previousPerformance.map((s) => ({
-              year: Number(s.year) || 0,
-              matches: Number(s.matches) || 0,
-              runs: Number(s.runs) || 0,
-              wickets: Number(s.wickets) || 0,
-              fielding: Number(s.fielding) || 0,
-              mom: Number(s.mom) || 0,
-              battingAvg: Number(s.battingAvg) || 0,
-              strikeRate: Number(s.strikeRate) || 0,
-              economy: Number(s.economy) || 0,
-            })),
-            tShirtNumber: num,
-            tShirtName: editForm.tShirtName.trim().toUpperCase(),
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await res.json();
-        if (data.success) {
+        if (data.success && data.data?.player) {
           showToast("Player updated successfully!");
           onSaveSuccess(data.data.player);
           onClose();
         } else {
           showToast(data.message || "Failed to update player", "error");
+          if (data.errors) setEditErrors(data.errors);
         }
       } catch {
         showToast("Network error while saving changes", "error");
@@ -716,14 +779,14 @@ export default function PlayersAdminPage() {
         style={styles.overlay}
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div style={{ ...styles.modal, maxWidth: 820 }}>
+        <div style={{ ...styles.modal, maxWidth: 840 }}>
           <div style={styles.modalHeader}>
             <div>
               <div style={{ fontWeight: 800, fontSize: 18, color: "#0F172A" }}>
                 ✏️ Edit Player Profile
               </div>
               <div style={{ fontSize: 12, color: "#64748B" }}>
-                Player ID: #{player.playerID} &nbsp;·&nbsp; {player.playerName}
+                Player ID: #{player.playerID ?? "—"} &nbsp;·&nbsp; {player.playerName}
               </div>
             </div>
             <button onClick={onClose} style={styles.closeBtn}>
@@ -732,165 +795,80 @@ export default function PlayersAdminPage() {
           </div>
 
           <form onSubmit={handleSave} style={{ padding: 24, overflowY: "auto" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {/* Full Name */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
               <div>
                 <label style={styles.inputLabel}>Full Name *</label>
                 <input
                   type="text"
                   value={editForm.playerName}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, playerName: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, playerName: e.target.value })}
                   style={styles.input}
                 />
-                {editErrors.playerName && (
-                  <span style={styles.errText}>{editErrors.playerName}</span>
-                )}
+                {editErrors.playerName && <span style={styles.errText}>{editErrors.playerName}</span>}
               </div>
 
-              {/* Mobile */}
               <div>
                 <label style={styles.inputLabel}>Mobile Number *</label>
                 <input
                   type="tel"
                   maxLength={10}
                   value={editForm.playerPhone}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, playerPhone: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, playerPhone: e.target.value })}
                   style={styles.input}
                 />
-                {editErrors.playerPhone && (
-                  <span style={styles.errText}>{editErrors.playerPhone}</span>
-                )}
+                {editErrors.playerPhone && <span style={styles.errText}>{editErrors.playerPhone}</span>}
               </div>
 
-              {/* DOB */}
               <div>
                 <label style={styles.inputLabel}>Date of Birth *</label>
                 <input
                   type="date"
                   value={editForm.dateOfBirth}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, dateOfBirth: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
                   style={styles.input}
                 />
-                {editErrors.dateOfBirth && (
-                  <span style={styles.errText}>{editErrors.dateOfBirth}</span>
-                )}
+                {editErrors.dateOfBirth && <span style={styles.errText}>{editErrors.dateOfBirth}</span>}
               </div>
 
-              {/* Anniversary */}
-              <div>
-                <label style={styles.inputLabel}>Marriage Anniversary (Optional)</label>
-                <input
-                  type="date"
-                  value={editForm.anniversary}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, anniversary: e.target.value })
-                  }
-                  style={styles.input}
-                />
-              </div>
-
-              {/* Blood Group */}
               <div>
                 <label style={styles.inputLabel}>Blood Group *</label>
                 <select
                   value={editForm.bloodGroup}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, bloodGroup: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, bloodGroup: e.target.value })}
                   style={styles.selectFull}
                 >
                   <option value="">Select Blood Group</option>
                   {BLOOD_GROUPS.map((bg) => (
-                    <option key={bg} value={bg}>
-                      {bg}
-                    </option>
+                    <option key={bg} value={bg}>{bg}</option>
                   ))}
                 </select>
-                {editErrors.bloodGroup && (
-                  <span style={styles.errText}>{editErrors.bloodGroup}</span>
-                )}
+                {editErrors.bloodGroup && <span style={styles.errText}>{editErrors.bloodGroup}</span>}
               </div>
 
-              {/* Previous Team */}
               <div>
-                <label style={styles.inputLabel}>Previous Team</label>
-                <select
-                  value={editForm.previousTeam}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, previousTeam: e.target.value })
-                  }
-                  style={styles.selectFull}
-                >
-                  <option value="">Select Previous Team</option>
-                  {PREVIOUS_TEAMS.map((tm) => (
-                    <option key={tm} value={tm}>
-                      {tm}
-                    </option>
-                  ))}
-                </select>
-                {editErrors.previousTeam && (
-                  <span style={styles.errText}>{editErrors.previousTeam}</span>
-                )}
-              </div>
-
-              {/* Previous Points */}
-              <div>
-                <label style={styles.inputLabel}>Previous Points (Admin Only)</label>
-                <input
-                  type="number"
-                  value={editForm.previousPoints}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, previousPoints: e.target.value })
-                  }
-                  placeholder="e.g. 150"
-                  style={styles.input}
-                />
-                {editErrors.previousPoints && (
-                  <span style={styles.errText}>{editErrors.previousPoints}</span>
-                )}
-              </div>
-
-              {/* Father's Name */}
-              <div>
-                <label style={styles.inputLabel}>Father&apos;s Full Name *</label>
+                <label style={styles.inputLabel}>Father&apos;s Name *</label>
                 <input
                   type="text"
                   value={editForm.fatherName}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, fatherName: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, fatherName: e.target.value })}
                   style={styles.input}
                 />
-                {editErrors.fatherName && (
-                  <span style={styles.errText}>{editErrors.fatherName}</span>
-                )}
+                {editErrors.fatherName && <span style={styles.errText}>{editErrors.fatherName}</span>}
               </div>
 
-              {/* Mother's Name */}
               <div>
-                <label style={styles.inputLabel}>Mother&apos;s Full Name *</label>
+                <label style={styles.inputLabel}>Mother&apos;s Name *</label>
                 <input
                   type="text"
                   value={editForm.motherName}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, motherName: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, motherName: e.target.value })}
                   style={styles.input}
                 />
-                {editErrors.motherName && (
-                  <span style={styles.errText}>{editErrors.motherName}</span>
-                )}
+                {editErrors.motherName && <span style={styles.errText}>{editErrors.motherName}</span>}
               </div>
 
-              {/* Profession Dropdown */}
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={styles.inputLabel}>Profession *</label>
+                <label style={styles.inputLabel}>Standard / Profession *</label>
                 <AdminSearchableSelect
                   value={editForm.profession}
                   options={PROFESSIONS}
@@ -902,160 +880,125 @@ export default function PlayersAdminPage() {
                     }));
                   }}
                 />
-                {editErrors.profession && (
-                  <span style={styles.errText}>{editErrors.profession}</span>
-                )}
+                {editErrors.profession && <span style={styles.errText}>{editErrors.profession}</span>}
               </div>
 
-              {/* Conditional Other Profession */}
               {editForm.profession === "Other" && (
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={styles.inputLabel}>Please Specify Custom Profession *</label>
+                  <label style={styles.inputLabel}>Please Specify Custom Standard/Profession *</label>
                   <input
                     type="text"
                     maxLength={100}
                     value={editForm.professionOther}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, professionOther: e.target.value })
-                    }
-                    placeholder="Describe custom profession"
+                    onChange={(e) => setEditForm({ ...editForm, professionOther: e.target.value })}
                     style={styles.input}
                   />
-                  {editErrors.professionOther && (
-                    <span style={styles.errText}>{editErrors.professionOther}</span>
-                  )}
+                  {editErrors.professionOther && <span style={styles.errText}>{editErrors.professionOther}</span>}
                 </div>
               )}
 
-              {/* Address Line 1 */}
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={styles.inputLabel}>Address Line 1 *</label>
-                <input
-                  type="text"
-                  value={editForm.addressLine1}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, addressLine1: e.target.value })
-                  }
-                  style={styles.input}
-                />
-                {editErrors.addressLine1 && (
-                  <span style={styles.errText}>{editErrors.addressLine1}</span>
-                )}
-              </div>
-
-              {/* Address Line 2 */}
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={styles.inputLabel}>Address Line 2 (Optional)</label>
-                <input
-                  type="text"
-                  value={editForm.addressLine2}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, addressLine2: e.target.value })
-                  }
-                  style={styles.input}
-                />
-              </div>
-
-              {/* City */}
-              <div>
-                <label style={styles.inputLabel}>City *</label>
-                <input
-                  type="text"
-                  value={editForm.city}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, city: e.target.value })
-                  }
-                  style={styles.input}
-                />
-                {editErrors.city && (
-                  <span style={styles.errText}>{editErrors.city}</span>
-                )}
-              </div>
-
-              {/* State */}
-              <div>
-                <label style={styles.inputLabel}>State *</label>
-                <input
-                  type="text"
-                  value={editForm.state}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, state: e.target.value })
-                  }
-                  style={styles.input}
-                />
-                {editErrors.state && (
-                  <span style={styles.errText}>{editErrors.state}</span>
-                )}
-              </div>
-
-              {/* PinCode */}
-              <div>
-                <label style={styles.inputLabel}>Pin Code *</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={editForm.pinCode}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, pinCode: e.target.value })
-                  }
-                  style={styles.input}
-                />
-                {editErrors.pinCode && (
-                  <span style={styles.errText}>{editErrors.pinCode}</span>
-                )}
-              </div>
-
-              {/* Country */}
-              <div>
-                <label style={styles.inputLabel}>Country</label>
-                <input
-                  type="text"
-                  value={editForm.country || "India"}
-                  disabled
-                  readOnly
-                  style={{ ...styles.input, background: "#F1F5F9" }}
-                />
-              </div>
-
-              {/* Role */}
               <div>
                 <label style={styles.inputLabel}>Player Role *</label>
                 <select
                   value={editForm.playerType}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, playerType: e.target.value })
-                  }
+                  onChange={(e) => setEditForm({ ...editForm, playerType: e.target.value })}
                   style={styles.selectFull}
                 >
                   <option value="">Select Role</option>
                   {PLAYER_ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
+                    <option key={r} value={r}>{r}</option>
                   ))}
                 </select>
-                {editErrors.playerType && (
-                  <span style={styles.errText}>{editErrors.playerType}</span>
-                )}
+                {editErrors.playerType && <span style={styles.errText}>{editErrors.playerType}</span>}
+              </div>
+
+              <div>
+                <label style={styles.inputLabel}>Tournament Pool</label>
+                <select
+                  value={editForm.playerPool}
+                  onChange={(e) => setEditForm({ ...editForm, playerPool: e.target.value })}
+                  style={styles.selectFull}
+                >
+                  {PLAYER_POOLS.map((pl) => (
+                    <option key={pl} value={pl}>Pool {pl}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={styles.inputLabel}>T-Shirt Size *</label>
+                <select
+                  value={editForm.tShirtSize}
+                  onChange={(e) => setEditForm({ ...editForm, tShirtSize: e.target.value })}
+                  style={styles.selectFull}
+                >
+                  <option value="">Select Size</option>
+                  {TSHIRT_SIZES.map((sz) => (
+                    <option key={sz} value={sz}>{sz}</option>
+                  ))}
+                </select>
+                {editErrors.tShirtSize && <span style={styles.errText}>{editErrors.tShirtSize}</span>}
+              </div>
+
+              <div>
+                <label style={styles.inputLabel}>T-Shirt Number (0-9999) *</label>
+                <input
+                  type="number"
+                  min={TSHIRT_NUMBER_MIN}
+                  max={TSHIRT_NUMBER_MAX}
+                  value={editForm.tShirtNumber}
+                  onChange={(e) => setEditForm({ ...editForm, tShirtNumber: e.target.value })}
+                  style={styles.input}
+                />
+                {editErrors.tShirtNumber && <span style={styles.errText}>{editErrors.tShirtNumber}</span>}
+              </div>
+
+              <div>
+                <label style={styles.inputLabel}>T-Shirt Name (Max 20 chars) *</label>
+                <input
+                  type="text"
+                  maxLength={TSHIRT_NAME_MAX_LENGTH}
+                  value={editForm.tShirtName}
+                  onChange={(e) => setEditForm({ ...editForm, tShirtName: e.target.value.toUpperCase().slice(0, 20) })}
+                  style={styles.input}
+                />
+                {editErrors.tShirtName && <span style={styles.errText}>{editErrors.tShirtName}</span>}
+              </div>
+
+              <div>
+                <label style={styles.inputLabel}>Practice Availability (0-23 Days) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={editForm.practice}
+                  onChange={(e) => setEditForm({ ...editForm, practice: e.target.value })}
+                  style={styles.input}
+                />
+                {editErrors.practice && <span style={styles.errText}>{editErrors.practice}</span>}
+              </div>
+
+              <div>
+                <label style={styles.inputLabel}>Payment Method</label>
+                <select
+                  value={editForm.paymentMethod}
+                  onChange={(e) => setEditForm({ ...editForm, paymentMethod: e.target.value })}
+                  style={styles.selectFull}
+                >
+                  {PAYMENT_METHODS.map((pm) => (
+                    <option key={pm} value={pm}>{pm}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Playing Styles */}
-              <div>
+              <div style={{ gridColumn: "1 / -1" }}>
                 <label style={styles.inputLabel}>Playing Style (Select 1-2) *</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                   {PLAYING_STYLES.map((st) => {
                     const sel = editForm.playingStyle.includes(st);
                     return (
-                      <label
-                        key={st}
-                        style={{
-                          fontSize: 12,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          cursor: "pointer",
-                        }}
-                      >
+                      <label key={st} style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                         <input
                           type="checkbox"
                           checked={sel}
@@ -1066,408 +1009,22 @@ export default function PlayersAdminPage() {
                     );
                   })}
                 </div>
-                {editErrors.playingStyle && (
-                  <span style={styles.errText}>{editErrors.playingStyle}</span>
-                )}
-              </div>
-
-              {/* T-Shirt Size */}
-              <div>
-                <label style={styles.inputLabel}>T-Shirt Size *</label>
-                <select
-                  value={editForm.tShirtSize}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, tShirtSize: e.target.value })
-                  }
-                  style={styles.selectFull}
-                >
-                  <option value="">Select Size</option>
-                  {TSHIRT_SIZES.map((sz) => (
-                    <option key={sz} value={sz}>
-                      {sz}
-                    </option>
-                  ))}
-                </select>
-                {editErrors.tShirtSize && (
-                  <span style={styles.errText}>{editErrors.tShirtSize}</span>
-                )}
-              </div>
-
-              {/* Pant Size */}
-              <div>
-                <label style={styles.inputLabel}>Pant Size *</label>
-                <select
-                  value={editForm.pantSize}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, pantSize: e.target.value })
-                  }
-                  style={styles.selectFull}
-                >
-                  <option value="">Select Size</option>
-                  {PANT_SIZES.map((sz) => (
-                    <option key={sz} value={sz}>
-                      {sz}
-                    </option>
-                  ))}
-                </select>
-                {editErrors.pantSize && (
-                  <span style={styles.errText}>{editErrors.pantSize}</span>
-                )}
-              </div>
-
-              {/* T-Shirt Number */}
-              <div>
-                <label style={styles.inputLabel}>T-Shirt Number (0-9999) *</label>
-                <input
-                  type="number"
-                  min={TSHIRT_NUMBER_MIN}
-                  max={TSHIRT_NUMBER_MAX}
-                  value={editForm.tShirtNumber}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, tShirtNumber: e.target.value })
-                  }
-                  style={styles.input}
-                />
-                {editErrors.tShirtNumber && (
-                  <span style={styles.errText}>{editErrors.tShirtNumber}</span>
-                )}
-              </div>
-
-              {/* T-Shirt Name */}
-              <div>
-                <label style={styles.inputLabel}>T-Shirt Name (Max 20 chars) *</label>
-                <input
-                  type="text"
-                  maxLength={TSHIRT_NAME_MAX_LENGTH}
-                  value={editForm.tShirtName}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      tShirtName: e.target.value.toUpperCase().slice(0, 20),
-                    })
-                  }
-                  style={styles.input}
-                />
-                {editErrors.tShirtName && (
-                  <span style={styles.errText}>{editErrors.tShirtName}</span>
-                )}
-              </div>
-
-              {/* Practice */}
-              <div>
-                <label style={styles.inputLabel}>Available for practice *</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="23"
-                  value={editForm.practice}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, practice: e.target.value })
-                  }
-                  style={styles.input}
-                />
-              </div>
-
-              {/* Tournament Performance & Season History */}
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  marginTop: 10,
-                  background: "#F8FAFC",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: 12,
-                  padding: 16,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 12,
-                    flexWrap: "wrap",
-                    gap: 10,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: "#0F172A" }}>
-                      🏆 Tournament Performance Records (Admin Only)
-                    </div>
-                    <div style={{ fontSize: 12, color: "#64748B" }}>
-                      Enter year-wise performance. Cumulative totals will be calculated automatically.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAddSeason}
-                    style={{
-                      background: "#1E3A8A",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: 6,
-                      padding: "6px 14px",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    + Add Season Year
-                  </button>
-                </div>
-
-                {/* Quick string import helper */}
-                <div
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #CBD5E1",
-                    borderRadius: 8,
-                    padding: 10,
-                    marginBottom: 14,
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 4 }}>
-                    ⚡ Quick String Importer (Format: <span style={{ fontFamily: "monospace" }}>2025 :- M:5, R:120, W:3, F:2 | 2024 :- M:4, R:80, W:1, F:1</span>)
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      type="text"
-                      value={quickImportText}
-                      onChange={(e) => setQuickImportText(e.target.value)}
-                      placeholder="Paste season string format..."
-                      style={{ ...styles.input, flex: 1, fontSize: 12, padding: "6px 10px" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleImportQuickString}
-                      style={{
-                        background: "#F1F5F9",
-                        border: "1px solid #CBD5E1",
-                        borderRadius: 6,
-                        padding: "6px 14px",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#1E293B",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Parse & Add
-                    </button>
-                  </div>
-                </div>
-
-                {/* Cumulative Totals Display */}
-                {editForm.previousPerformance.length > 0 && (
-                  <div
-                    style={{
-                      background: "#EFF6FF",
-                      border: "1px solid #BFDBFE",
-                      borderRadius: 8,
-                      padding: "10px 14px",
-                      marginBottom: 14,
-                    }}
-                  >
-                    <div style={{ fontSize: 11, fontWeight: 800, color: "#1E40AF", marginBottom: 6, textTransform: "uppercase" }}>
-                      Cumulative Summary ({editForm.previousPerformance.length} Seasons)
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, textAlign: "center" }}>
-                      <div style={{ background: "#fff", padding: "6px 4px", borderRadius: 6, border: "1px solid #BFDBFE" }}>
-                        <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>MATCHES</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#0F172A" }}>{cumulativeTotals.matches}</div>
-                      </div>
-                      <div style={{ background: "#fff", padding: "6px 4px", borderRadius: 6, border: "1px solid #BFDBFE" }}>
-                        <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>RUNS</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#2563EB" }}>{cumulativeTotals.runs}</div>
-                      </div>
-                      <div style={{ background: "#fff", padding: "6px 4px", borderRadius: 6, border: "1px solid #BFDBFE" }}>
-                        <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>WICKETS</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#059669" }}>{cumulativeTotals.wickets}</div>
-                      </div>
-                      <div style={{ background: "#fff", padding: "6px 4px", borderRadius: 6, border: "1px solid #BFDBFE" }}>
-                        <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>FIELDING</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#D97706" }}>{cumulativeTotals.fielding}</div>
-                      </div>
-                      <div style={{ background: "#fff", padding: "6px 4px", borderRadius: 6, border: "1px solid #BFDBFE" }}>
-                        <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>MOM</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: "#7C3AED" }}>{cumulativeTotals.mom}</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Year Wise List of Season Cards */}
-                {editForm.previousPerformance.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "16px 0", color: "#94A3B8", fontSize: 12, fontStyle: "italic" }}>
-                    No performance records added yet. Click &ldquo;+ Add Season Year&rdquo; or use the quick importer above.
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {editForm.previousPerformance.map((season, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: "#fff",
-                          border: "1px solid #CBD5E1",
-                          borderRadius: 8,
-                          padding: 12,
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>Season Year:</span>
-                            <input
-                              type="number"
-                              value={season.year}
-                              onChange={(e) => handleSeasonChange(idx, "year", e.target.value)}
-                              style={{ ...styles.input, width: 85, padding: "4px 8px", fontSize: 13, fontWeight: 700 }}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSeason(idx)}
-                            style={{
-                              background: "#FEE2E2",
-                              color: "#DC2626",
-                              border: "none",
-                              borderRadius: 6,
-                              padding: "4px 8px",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: "pointer",
-                            }}
-                          >
-                            🗑️ Remove
-                          </button>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(70px, 1fr))",
-                            gap: 8,
-                          }}
-                        >
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Matches</label>
-                            <input
-                              type="number"
-                              value={season.matches}
-                              onChange={(e) => handleSeasonChange(idx, "matches", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Runs</label>
-                            <input
-                              type="number"
-                              value={season.runs}
-                              onChange={(e) => handleSeasonChange(idx, "runs", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Wickets</label>
-                            <input
-                              type="number"
-                              value={season.wickets}
-                              onChange={(e) => handleSeasonChange(idx, "wickets", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Fielding</label>
-                            <input
-                              type="number"
-                              value={season.fielding}
-                              onChange={(e) => handleSeasonChange(idx, "fielding", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>MOM</label>
-                            <input
-                              type="number"
-                              value={season.mom}
-                              onChange={(e) => handleSeasonChange(idx, "mom", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Batting Avg</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={season.battingAvg}
-                              onChange={(e) => handleSeasonChange(idx, "battingAvg", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Strike Rate</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={season.strikeRate}
-                              onChange={(e) => handleSeasonChange(idx, "strikeRate", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", display: "block" }}>Economy</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={season.economy}
-                              onChange={(e) => handleSeasonChange(idx, "economy", e.target.value)}
-                              style={{ ...styles.input, padding: "4px 6px", fontSize: 12 }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {editErrors.playingStyle && <span style={styles.errText}>{editErrors.playingStyle}</span>}
               </div>
             </div>
 
-            <div
-              style={{
-                marginTop: 20,
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 10,
-                borderTop: "1px solid #E2E8F0",
-                paddingTop: 16,
-              }}
-            >
+            <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10, borderTop: "1px solid #E2E8F0", paddingTop: 16 }}>
               <button
                 type="button"
                 onClick={onClose}
-                style={{
-                  ...styles.quickBtn,
-                  background: "#F1F5F9",
-                  color: "#475569",
-                  padding: "9px 18px",
-                }}
+                style={{ ...styles.quickBtn, background: "#F1F5F9", color: "#475569", padding: "9px 18px" }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                style={{
-                  ...styles.saveBtn,
-                  marginLeft: 0,
-                  opacity: saving ? 0.7 : 1,
-                }}
+                style={{ ...styles.saveBtn, marginLeft: 0, opacity: saving ? 0.7 : 1 }}
               >
                 {saving ? "Saving Changes..." : "Save Player Updates"}
               </button>
@@ -1478,15 +1035,17 @@ export default function PlayersAdminPage() {
     );
   };
 
-  /* ─── Player Detail Modal ───────────────────────────────── */
+  /* ─── Player Detail Modal (Exact Reference UI) ───────────── */
   const PlayerModal = ({ player, onClose }) => {
-    const [localStatus, setLocalStatus] = useState(player.status);
-    const [saving, setSaving] = useState(false);
-    const [playerPool, setPlayerPool] = useState(player.playerPool || 1);
+    const [localStatus, setLocalStatus] = useState(player.status || "pending");
+    const [savingStatus, setSavingStatus] = useState(false);
+    const [playerPool, setPlayerPool] = useState(player.playerPool !== undefined ? player.playerPool : 0);
+    const [savingPool, setSavingPool] = useState(false);
 
     const computedAge = calculateAge(player.dateOfBirth, player.Age);
 
     const updatePool = async () => {
+      setSavingPool(true);
       try {
         const r = await fetch(`/api/players/${player._id}/pool`, {
           method: "PATCH",
@@ -1505,18 +1064,34 @@ export default function PlayersAdminPage() {
         }
       } catch {
         showToast("Failed to update pool", "error");
+      } finally {
+        setSavingPool(false);
       }
     };
 
-    const saveStatus = async () => {
-      if (localStatus === player.status) {
-        onClose();
-        return;
+    const confirmStatusUpdate = async () => {
+      setSavingStatus(true);
+      try {
+        const r = await fetch(`/api/players/${player._id}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: localStatus }),
+        });
+        const data = await r.json();
+        if (data.success) {
+          showToast(`Status confirmed as "${localStatus}"`);
+          fetchPlayers();
+          if (data.data?.player) {
+            setSelected(data.data.player);
+          }
+        } else {
+          showToast(data.message || "Status update failed", "error");
+        }
+      } catch {
+        showToast("Network error updating status", "error");
+      } finally {
+        setSavingStatus(false);
       }
-      setSaving(true);
-      await updateStatus(player._id, localStatus);
-      setSaving(false);
-      onClose();
     };
 
     return (
@@ -1531,14 +1106,17 @@ export default function PlayersAdminPage() {
               <Avatar
                 src={player.playerPhoto?.url}
                 name={player.playerName}
-                size={54}
+                size={52}
               />
               <div>
-                <div style={{ fontWeight: 800, fontSize: 19, color: "#0F172A" }}>
+                <div style={{ fontWeight: 800, fontSize: 18, color: "#0F172A" }}>
                   {player.playerName}
                 </div>
-                <div style={{ fontSize: 13, color: "#64748B" }}>
-                  Player ID: #{player.playerID ?? "—"} &nbsp;·&nbsp; {player.playerType} &nbsp;·&nbsp;{" "}
+                <div style={{ fontSize: 13, color: "#64748B", display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                  <span>Player ID: #{player.playerID ?? "—"}</span>
+                  <span>·</span>
+                  <span>{player.playerType}</span>
+                  <span>·</span>
                   <Badge status={player.status} />
                 </div>
               </div>
@@ -1547,21 +1125,15 @@ export default function PlayersAdminPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button
                 onClick={() => setEditingPlayer(player)}
-                style={{
-                  background: "#EFF6FF",
-                  border: "1px solid #BFDBFE",
-                  color: "#1E40AF",
-                  borderRadius: 8,
-                  padding: "7px 14px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
+                style={styles.editModalBtn}
               >
                 ✏️ Edit Player
+              </button>
+              <button
+                onClick={() => deletePlayer(player._id, player.playerName)}
+                style={styles.deleteModalBtn}
+              >
+                🗑️ Delete
               </button>
               <button onClick={onClose} style={styles.closeBtn}>
                 ✕
@@ -1571,159 +1143,75 @@ export default function PlayersAdminPage() {
 
           <div style={styles.modalBody}>
             <div style={styles.twoCol}>
-              {/* Left Column: Details */}
+              {/* Left Column: Player Information */}
               <div>
                 {/* 1. Personal Information */}
-                <Section title="Personal Information">
-                  <Field label="Full Name" value={player.playerName} />
-                  <Field label="Mobile Number" value={player.playerPhone} />
-                  <Field label="Date of Birth" value={formatDate(player.dateOfBirth)} />
-                  <Field
-                    label="Calculated Age"
-                    value={
-                      computedAge !== null
-                        ? `${computedAge} years`
-                        : "Not Available"
-                    }
-                  />
-                  <Field
-                    label="Anniversary"
-                    value={formatDate(player.anniversary)}
-                  />
-                  <Field
-                    label="Blood Group"
-                    value={player.bloodGroup || "Not Available"}
-                  />
-                  <Field
-                    label="Father's Name"
-                    value={player.fatherName || "Not Available"}
-                  />
-                  <Field
-                    label="Mother's Name"
-                    value={player.motherName || "Not Available"}
-                  />
-                  <Field
-                    label="Profession"
-                    value={player.profession || "Not Available"}
-                  />
-                  {player.profession === "Other" && (
-                    <Field
-                      label="Custom Profession"
-                      value={player.professionOther || "Not Available"}
-                      highlight
+                <Section title="PERSONAL INFORMATION">
+                  <div style={styles.grid2Col}>
+                    <ModalField label="FULL NAME" value={player.playerName} />
+                    <ModalField label="MOBILE NUMBER" value={player.playerPhone} />
+                    <ModalField label="DATE OF BIRTH" value={formatDate(player.dateOfBirth)} />
+                    <ModalField label="CALCULATED AGE" value={computedAge !== null ? `${computedAge} years` : "Not Available"} />
+                    <ModalField label="FATHER'S NAME" value={player.fatherName} />
+                    <ModalField label="MOTHER'S NAME" value={player.motherName} />
+                    <ModalField
+                      label="STANDARD"
+                      value={
+                        player.profession === "Other" && player.professionOther
+                          ? player.professionOther
+                          : player.profession || "Not Available"
+                      }
                     />
-                  )}
-                  <Field
-                    label="Previous Team"
-                    value={player.previousTeam || "Not Available"}
-                  />
+                  </div>
                 </Section>
 
-                {/* 2. Address Details (AddressSchema) */}
-                <Section title="Residential Address">
-                  {Array.isArray(player.playerAddress) && player.playerAddress[0] ? (
-                    <>
-                      <Field
-                        label="Address Line 1"
-                        value={player.playerAddress[0].AddressLine1 || "Not Available"}
-                      />
-                      {player.playerAddress[0].AddressLine2 && (
-                        <Field
-                          label="Address Line 2"
-                          value={player.playerAddress[0].AddressLine2}
-                        />
-                      )}
-                      <Field
-                        label="City"
-                        value={player.playerAddress[0].City || "Not Available"}
-                      />
-                      <Field
-                        label="State"
-                        value={player.playerAddress[0].State || "Not Available"}
-                      />
-                      <Field
-                        label="Pin Code"
-                        value={player.playerAddress[0].PinCode || "Not Available"}
-                        mono
-                      />
-                      <Field
-                        label="Country"
-                        value={player.playerAddress[0].Country || "India"}
-                      />
-                    </>
-                  ) : (
-                    <Field label="Address" value="Not Available" />
-                  )}
-                </Section>
-
-                {/* 3. Playing Information */}
-                <Section title="Playing Information">
-                  <Field label="Player ID" value={`#${player.playerID ?? "—"}`} />
-                  <Field label="Player Role" value={player.playerType} />
-                  <Field
-                    label="Playing Style"
-                    value={
-                      Array.isArray(player.playingStyle)
-                        ? player.playingStyle.join(", ")
-                        : player.playingStyle || "—"
-                    }
-                  />
-                  <Field label="Category" value={player.playerCategory || "—"} />
-                  <Field label="Player Pool" value={`Pool ${player.playerPool ?? "—"}`} />
-                  <Field
-                    label="Previous Points"
-                    value={
-                      player.previousPoints !== undefined && player.previousPoints !== null
-                        ? player.previousPoints
-                        : "Not Available"
-                    }
-                    highlight={player.previousPoints !== undefined && player.previousPoints !== null}
-                  />
+                {/* 2. Playing Information */}
+                <Section title="PLAYING INFORMATION">
+                  <div style={styles.grid2Col}>
+                    <ModalField label="PLAYER ID" value={`#${player.playerID ?? "—"}`} />
+                    <ModalField label="PLAYER ROLE" value={player.playerType} />
+                    <ModalField
+                      label="PLAYING STYLE"
+                      value={
+                        Array.isArray(player.playingStyle)
+                          ? player.playingStyle.join(", ")
+                          : player.playingStyle || "—"
+                      }
+                    />
+                    <ModalField label="PLAYER CATEGORY" value={player.playerCategory || "Undefined"} />
+                    <ModalField label="PLAYER POOL" value={`Pool ${player.playerPool ?? 0}`} />
+                  </div>
                 </Section>
 
                 {/* 3. Merchandise Information */}
-                <Section title="Merchandise Information">
-                  <Field label="T-Shirt Size" value={player.tShirtSize || "Not Available"} />
-                  <Field label="Pant Size" value={player.pantSize || "Not Available"} />
-                  <Field
-                    label="T-Shirt Number"
-                    value={player.tShirtNumber !== undefined ? `#${player.tShirtNumber}` : "Not Available"}
-                    mono
-                  />
-                  <Field
-                    label="T-Shirt Name"
-                    value={player.tShirtName || "Not Available"}
-                    highlight
-                  />
+                <Section title="MERCHANDISE INFORMATION">
+                  <div style={styles.grid2Col}>
+                    <ModalField label="T-SHIRT SIZE" value={player.tShirtSize} />
+                    <ModalField label="T-SHIRT NUMBER" value={player.tShirtNumber} />
+                    <ModalField label="T-SHIRT NAME" value={player.tShirtName} highlightGreen />
+                  </div>
                 </Section>
 
-                {/* 4. Payment Information */}
-                <Section title="Payment Information">
-                  <Field label="Transaction ID" value={player.transactionId} mono />
-                  <Field label="Status" value={player.status?.toUpperCase()} />
-                  <Field
-                    label="Registered On"
-                    value={
-                      player.createdAt
-                        ? new Date(player.createdAt).toLocaleString("en-IN")
-                        : "—"
-                    }
-                  />
-                </Section>
-                
-                <Section title="Practice Availability">
-                  <Field
-                    label="Days available for practice"
-                    value={player.practice !== undefined ? `#${player.practice}` : "Not Available"}
-                    mono
-                  />
+                {/* 4. Payment & Practice */}
+                <Section title="PAYMENT & PRACTICE">
+                  <div style={styles.grid2Col}>
+                    <ModalField label="PAYMENT METHOD" value={player.paymentMethod || "Online"} />
+                    <ModalField label="TRANSACTION / RECEIPT ID" value={player.transactionId} mono />
+                    <ModalField
+                      label="DAYS AVAILABLE FOR PRACTICE"
+                      value={player.practice !== undefined && player.practice !== null ? `${player.practice} days` : "Not Available"}
+                      highlightGreen
+                    />
+                    <ModalField label="REGISTERED ON" value={formatDateTime(player.createdAt)} />
+                  </div>
                 </Section>
               </div>
 
-              {/* Right Column: Media */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {/* Right Column: Media, Pool, and Status Control */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* Player Photo */}
                 <div>
-                  <div style={styles.imgLabel}>Player Photo</div>
+                  <div style={styles.imgLabel}>PLAYER PHOTO</div>
                   {player.playerPhoto?.url ? (
                     <div
                       style={{ cursor: "zoom-in", position: "relative" }}
@@ -1735,11 +1223,10 @@ export default function PlayersAdminPage() {
                         alt="Player Portrait"
                         style={{
                           width: "100%",
-                          maxHeight: 240,
+                          height: 220,
                           objectFit: "cover",
-                          borderRadius: 12,
+                          borderRadius: 10,
                           border: "1px solid #E2E8F0",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                         }}
                       />
                       <span style={styles.zoomHint}>🔍 Click to enlarge</span>
@@ -1749,8 +1236,9 @@ export default function PlayersAdminPage() {
                   )}
                 </div>
 
+                {/* Payment Screenshot Card */}
                 <div>
-                  <div style={styles.imgLabel}>Payment Screenshot</div>
+                  <div style={styles.imgLabel}>PAYMENT RECEIPT / SCREENSHOT</div>
                   {player.paymentScreenshot?.url ? (
                     <div
                       style={{ cursor: "zoom-in", position: "relative" }}
@@ -1762,231 +1250,90 @@ export default function PlayersAdminPage() {
                         alt="Payment Proof"
                         style={{
                           width: "100%",
-                          maxHeight: 280,
+                          height: 180,
                           objectFit: "contain",
-                          borderRadius: 12,
+                          borderRadius: 10,
                           border: "1px solid #E2E8F0",
                           background: "#F8FAFC",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                         }}
                       />
                       <span style={styles.zoomHint}>🔍 Click to enlarge</span>
                     </div>
                   ) : (
-                    <div style={styles.imgPlaceholder}>No screenshot uploaded</div>
+                    <div style={styles.imgPlaceholder}>No receipt uploaded</div>
                   )}
                 </div>
-              </div>
-            </div>
 
-            {/* Tournament Performance & History */}
-            <div style={{ marginTop: 8, marginBottom: 18, borderTop: "1px solid #E2E8F0", paddingTop: 16 }}>
-              <Section title="Tournament Performance & History">
-                {Array.isArray(player.previousPerformance) && player.previousPerformance.length > 0 ? (
-                  <div>
-                    {/* Cumulative Stats Card */}
-                    {(() => {
-                      const totals = player.previousPerformance.reduce(
-                        (acc, s) => ({
-                          matches: acc.matches + (Number(s.matches) || 0),
-                          runs: acc.runs + (Number(s.runs) || 0),
-                          wickets: acc.wickets + (Number(s.wickets) || 0),
-                          fielding: acc.fielding + (Number(s.fielding) || 0),
-                          mom: acc.mom + (Number(s.mom) || 0),
-                        }),
-                        { matches: 0, runs: 0, wickets: 0, fielding: 0, mom: 0 }
-                      );
+                {/* Assign Player Pool Card */}
+                <div style={styles.sideCard}>
+                  <div style={styles.sideCardTitle}>
+                    <span>🎽</span>
+                    <span>Assign Player Pool</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <select
+                      value={playerPool}
+                      onChange={(e) => setPlayerPool(Number(e.target.value))}
+                      style={{ ...styles.select, flex: 1, padding: "7px 12px" }}
+                    >
+                      {PLAYER_POOLS.map((pool) => (
+                        <option key={pool} value={pool}>
+                          Pool {pool}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={updatePool}
+                      disabled={savingPool}
+                      style={styles.savePoolBtn}
+                    >
+                      {savingPool ? "Saving…" : "Save Pool"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Update Registration Status Card */}
+                <div style={styles.sideCard}>
+                  <div style={styles.sideCardTitle}>
+                    <span>⚡</span>
+                    <span>Update Registration Status</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 8 }}>
+                    {STATUS_OPTIONS.map((st) => {
+                      const isSel = localStatus === st;
+                      const col = STATUS_COLORS[st];
                       return (
-                        <div
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setLocalStatus(st)}
                           style={{
-                            background: "#F8FAFC",
-                            border: "1px solid #E2E8F0",
-                            borderRadius: 8,
-                            padding: "10px 14px",
-                            marginBottom: 12,
+                            padding: "6px 4px",
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            textTransform: "uppercase",
+                            background: isSel ? col.bg : "#F8FAFC",
+                            color: isSel ? col.text : "#64748B",
+                            border: `1.5px solid ${isSel ? col.border : "#E2E8F0"}`,
+                            transition: "all 0.15s ease",
                           }}
                         >
-                          <div
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              color: "#1E3A8A",
-                              marginBottom: 6,
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            Cumulative All-Time Stats ({player.previousPerformance.length} Seasons)
-                          </div>
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "repeat(5, 1fr)",
-                              gap: 8,
-                              textAlign: "center",
-                            }}
-                          >
-                            <div
-                              style={{
-                                background: "#fff",
-                                padding: "8px 4px",
-                                borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                              }}
-                            >
-                              <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>MATCHES</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: "#0F172A" }}>{totals.matches}</div>
-                            </div>
-                            <div
-                              style={{
-                                background: "#fff",
-                                padding: "8px 4px",
-                                borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                              }}
-                            >
-                              <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>RUNS</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: "#2563EB" }}>{totals.runs}</div>
-                            </div>
-                            <div
-                              style={{
-                                background: "#fff",
-                                padding: "8px 4px",
-                                borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                              }}
-                            >
-                              <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>WICKETS</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: "#059669" }}>{totals.wickets}</div>
-                            </div>
-                            <div
-                              style={{
-                                background: "#fff",
-                                padding: "8px 4px",
-                                borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                              }}
-                            >
-                              <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>FIELDING</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: "#D97706" }}>{totals.fielding}</div>
-                            </div>
-                            <div
-                              style={{
-                                background: "#fff",
-                                padding: "8px 4px",
-                                borderRadius: 6,
-                                border: "1px solid #E2E8F0",
-                              }}
-                            >
-                              <div style={{ fontSize: 10, color: "#64748B", fontWeight: 600 }}>MOM</div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: "#7C3AED" }}>{totals.mom}</div>
-                            </div>
-                          </div>
-                        </div>
+                          {st}
+                        </button>
                       );
-                    })()}
-
-                    {/* Year-by-Year Records Table */}
-                    <div style={{ overflowX: "auto", border: "1px solid #E2E8F0", borderRadius: 8 }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ background: "#F1F5F9", color: "#475569", textAlign: "center" }}>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>Year</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>M</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>R</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>W</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>F</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>MOM</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>Avg</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>SR</th>
-                            <th style={{ padding: "6px 8px", borderBottom: "1px solid #E2E8F0" }}>Econ</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {player.previousPerformance.map((rec, i) => (
-                            <tr key={i} style={{ textAlign: "center", borderBottom: "1px solid #F1F5F9" }}>
-                              <td style={{ padding: "6px 8px", fontWeight: 700, color: "#1E293B" }}>{rec.year || "—"}</td>
-                              <td style={{ padding: "6px 8px" }}>{rec.matches ?? 0}</td>
-                              <td style={{ padding: "6px 8px", fontWeight: 600, color: "#2563EB" }}>{rec.runs ?? 0}</td>
-                              <td style={{ padding: "6px 8px", fontWeight: 600, color: "#059669" }}>{rec.wickets ?? 0}</td>
-                              <td style={{ padding: "6px 8px" }}>{rec.fielding ?? 0}</td>
-                              <td style={{ padding: "6px 8px" }}>{rec.mom ?? 0}</td>
-                              <td style={{ padding: "6px 8px" }}>{rec.battingAvg ?? 0}</td>
-                              <td style={{ padding: "6px 8px" }}>{rec.strikeRate ?? 0}</td>
-                              <td style={{ padding: "6px 8px" }}>{rec.economy ?? 0}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    })}
                   </div>
-                ) : (
-                  <div style={{ fontSize: 12, color: "#94A3B8", fontStyle: "italic", padding: "4px 0" }}>
-                    No previous tournament performance recorded
-                  </div>
-                )}
-              </Section>
-            </div>
-
-            {/* Status Update Control */}
-            <div style={styles.statusRow}>
-              <span style={{ fontWeight: 700, color: "#334155", fontSize: 13 }}>
-                Update Registration Status:
-              </span>
-              <div style={{ display: "flex", gap: 8 }}>
-                {STATUS_OPTIONS.map((s) => (
                   <button
-                    key={s}
-                    onClick={() => setLocalStatus(s)}
-                    style={{
-                      ...styles.statusBtn,
-                      background:
-                        localStatus === s ? STATUS_COLORS[s].bg : "#F1F5F9",
-                      color:
-                        localStatus === s ? STATUS_COLORS[s].text : "#64748B",
-                      border:
-                        localStatus === s
-                          ? `2px solid ${STATUS_COLORS[s].border}`
-                          : "2px solid transparent",
-                      fontWeight: localStatus === s ? 700 : 500,
-                    }}
+                    onClick={confirmStatusUpdate}
+                    disabled={savingStatus}
+                    style={styles.confirmStatusBtn}
                   >
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                    {savingStatus ? "Updating…" : "Confirm Status"}
                   </button>
-                ))}
+                </div>
               </div>
-              <button onClick={saveStatus} disabled={saving} style={styles.saveBtn}>
-                {saving ? "Saving…" : "Save Status"}
-              </button>
-            </div>
-
-            {/* Pool Update Control */}
-            <div
-              style={{
-                marginTop: 16,
-                paddingTop: 16,
-                borderTop: "1px solid #F1F5F9",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>
-                Tournament Pool:
-              </span>
-              <select
-                value={playerPool}
-                onChange={(e) => setPlayerPool(Number(e.target.value))}
-                style={styles.select}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((pool) => (
-                  <option key={pool} value={pool}>
-                    Pool {pool}
-                  </option>
-                ))}
-              </select>
-              <button onClick={updatePool} style={styles.saveBtn}>
-                Update Pool
-              </button>
             </div>
           </div>
         </div>
@@ -2047,78 +1394,183 @@ export default function PlayersAdminPage() {
             setPlayers((prev) =>
               prev.map((p) => (p._id === updated._id ? updated : p)),
             );
-            if (selectedPlayer?._id === updated._id) {
-              setSelected(updated);
-            }
+            if (selectedPlayer?._id === updated._id) setSelected(updated);
+            fetchPlayers();
           }}
         />
       )}
 
-      {/* Page Header */}
+      {/* Header Bar */}
       <div style={styles.pageHeader}>
         <div>
-          <h1 style={styles.pageTitle}>🏏 MPL 2026 Admin Dashboard</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 24 }}>🏏</span>
+            <h1 style={styles.pageTitle}>MPL Kids 2026 Admin Dashboard</h1>
+          </div>
           <p style={styles.pageSubtitle}>
-            Review, edit, search, and export player registrations
+            Complete Player Management, Verification, Status &amp; Merchandise
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            onClick={() => fetchPlayers()}
+            style={styles.refreshBtn}
+            title="Refresh database records"
+          >
+            <span>🔄</span>
+            <span>Refresh</span>
+          </button>
           <ExportBtn
-            label="Export Excel (25 Fields)"
+            label="Export Excel"
             onClick={exportExcel}
             loading={exporting === "excel"}
             icon="📊"
-            color="#16A34A"
+            color="#059669"
           />
+          <button
+            onClick={() => {
+              if (window.confirm("Logout from admin portal?")) {
+                window.location.href = "/";
+              }
+            }}
+            style={styles.logoutBtn}
+          >
+            <span>🔒</span>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div style={styles.statsGrid}>
-        {[
-          { label: "Total", value: stats.total, color: "#3B82F6", icon: "👥" },
-          { label: "Pending", value: stats.pending, color: "#F59E0B", icon: "⏳" },
-          { label: "Approved", value: stats.approved, color: "#10B981", icon: "✅" },
-          { label: "Rejected", value: stats.rejected, color: "#EF4444", icon: "❌" },
-        ].map((s) => (
+      {/* 8 Summary Stat Cards (Exact match to reference screenshot) */}
+      <div style={styles.statsContainer}>
+        {/* Row 1: 6 cards */}
+        <div style={styles.statsRow6}>
+          {/* Total Registered */}
           <div
-            key={s.label}
             style={styles.statCard}
-            onClick={() => {
-              setFStatus(s.label === "Total" ? "" : s.label.toLowerCase());
-              setPage(1);
-            }}
+            onClick={() => { setFStatus(""); setPage(1); }}
           >
-            <div style={{ fontSize: 24 }}>{s.icon}</div>
+            <div style={styles.statIconWrap}>📋</div>
             <div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>
-                {s.value}
-              </div>
-              <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>
-                {s.label} Players
-              </div>
+              <div style={styles.statNumber}>{stats.total}</div>
+              <div style={styles.statLabel}>Total Registered</div>
             </div>
           </div>
-        ))}
+
+          {/* Pending Review */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFStatus("pending"); setPage(1); }}
+          >
+            <div style={styles.statIconWrap}>🏆</div>
+            <div>
+              <div style={styles.statNumber}>{stats.pending}</div>
+              <div style={styles.statLabel}>Pending Review</div>
+            </div>
+          </div>
+
+          {/* Approved Players */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFStatus("approved"); setPage(1); }}
+          >
+            <div style={{ ...styles.statIconWrap, color: "#10B981" }}>✅</div>
+            <div>
+              <div style={{ ...styles.statNumber, color: "#10B981" }}>{stats.approved}</div>
+              <div style={styles.statLabel}>Approved Players</div>
+            </div>
+          </div>
+
+          {/* Rejected */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFStatus("rejected"); setPage(1); }}
+          >
+            <div style={{ ...styles.statIconWrap, color: "#EF4444" }}>❌</div>
+            <div>
+              <div style={{ ...styles.statNumber, color: "#EF4444" }}>{stats.rejected}</div>
+              <div style={styles.statLabel}>Rejected</div>
+            </div>
+          </div>
+
+          {/* Batsmen */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFType("Batsman"); setPage(1); }}
+          >
+            <div style={styles.statIconWrap}>🏏</div>
+            <div>
+              <div style={styles.statNumber}>{stats.batsmen || 0}</div>
+              <div style={styles.statLabel}>Batsmen</div>
+            </div>
+          </div>
+
+          {/* Bowlers */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFType("Bowler"); setPage(1); }}
+          >
+            <div style={styles.statIconWrap}>⚡</div>
+            <div>
+              <div style={styles.statNumber}>{stats.bowlers || 0}</div>
+              <div style={styles.statLabel}>Bowlers</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: 2 cards */}
+        <div style={styles.statsRow2}>
+          {/* All Rounders */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFType("All Rounder"); setPage(1); }}
+          >
+            <div style={styles.statIconWrap}>⭐</div>
+            <div>
+              <div style={styles.statNumber}>{stats.allRounders || 0}</div>
+              <div style={styles.statLabel}>All Rounders</div>
+            </div>
+          </div>
+
+          {/* Paid Online / Cash */}
+          <div
+            style={styles.statCard}
+            onClick={() => { setFPayment(""); setPage(1); }}
+          >
+            <div style={styles.statIconWrap}>💳</div>
+            <div>
+              <div style={styles.statNumber}>{stats.online || 0} / {stats.cash || 0}</div>
+              <div style={styles.statLabel}>Paid Online / Cash</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Filters and Search Bar */}
-      <div style={styles.filterBar}>
-        <input
-          placeholder="Search name, phone, player ID, txn ID, jersey #…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={styles.searchInput}
-        />
+      {/* Filter and Search Bar Container */}
+      <div style={styles.filterBarContainer}>
+        {/* Search */}
+        <div style={{ position: "relative", flex: "1 1 240px" }}>
+          <input
+            placeholder="Search by name, phone, txn ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={styles.searchInput}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              style={styles.clearSearchBtn}
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
-        {/* Status Filter */}
+        {/* All Statuses */}
         <select
           value={filterStatus}
-          onChange={(e) => {
-            setFStatus(e.target.value);
-            setPage(1);
-          }}
-          style={styles.select}
+          onChange={(e) => { setFStatus(e.target.value); setPage(1); }}
+          style={styles.filterSelect}
         >
           <option value="">All Statuses</option>
           {STATUS_OPTIONS.map((s) => (
@@ -2128,114 +1580,110 @@ export default function PlayersAdminPage() {
           ))}
         </select>
 
-        {/* Role Filter */}
+        {/* All Roles */}
         <select
           value={filterType}
-          onChange={(e) => {
-            setFType(e.target.value);
-            setPage(1);
-          }}
-          style={styles.select}
+          onChange={(e) => { setFType(e.target.value); setPage(1); }}
+          style={styles.filterSelect}
         >
           <option value="">All Roles</option>
           {PLAYER_ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
+            <option key={r} value={r}>{r}</option>
           ))}
         </select>
 
-        {/* Pool Filter */}
-        <select
-          value={filterPool}
-          onChange={(e) => {
-            setFPool(e.target.value);
-            setPage(1);
-          }}
-          style={styles.select}
-        >
-          <option value="">All Pools</option>
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((pool) => (
-            <option key={pool} value={pool}>
-              Pool {pool}
-            </option>
-          ))}
-        </select>
-
-        {/* Profession Filter */}
+        {/* All Standards */}
         <select
           value={filterProfession}
-          onChange={(e) => {
-            setFProfession(e.target.value);
-            setPage(1);
-          }}
-          style={{ ...styles.select, maxWidth: 220 }}
+          onChange={(e) => { setFProfession(e.target.value); setPage(1); }}
+          style={{ ...styles.filterSelect, maxWidth: 170 }}
         >
-          <option value="">All Professions</option>
-          {PROFESSIONS.map((prof) => (
-            <option key={prof} value={prof}>
-              {prof}
-            </option>
+          <option value="">All Standards</option>
+          {PROFESSIONS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+
+        {/* All Pools */}
+        <select
+          value={filterPool}
+          onChange={(e) => { setFPool(e.target.value); setPage(1); }}
+          style={styles.filterSelect}
+        >
+          <option value="">All Pools</option>
+          {PLAYER_POOLS.map((pool) => (
+            <option key={pool} value={pool}>Pool {pool}</option>
+          ))}
+        </select>
+
+        {/* All Payments */}
+        <select
+          value={filterPayment}
+          onChange={(e) => { setFPayment(e.target.value); setPage(1); }}
+          style={styles.filterSelect}
+        >
+          <option value="">All Payments</option>
+          {PAYMENT_METHODS.map((pm) => (
+            <option key={pm} value={pm}>{pm}</option>
           ))}
         </select>
 
         {/* Clear Filters */}
-        {(filterStatus || filterType || filterPool || filterProfession || search) && (
-          <button
-            onClick={() => {
-              setFStatus("");
-              setFType("");
-              setFPool("");
-              setFProfession("");
-              setSearch("");
-              setPage(1);
-            }}
-            style={styles.clearBtn}
-          >
+        {hasActiveFilters && (
+          <button onClick={clearAllFilters} style={styles.clearFiltersBtn}>
             Clear ✕
           </button>
         )}
       </div>
 
-      {/* Players Table */}
+      {/* Players Management Table */}
       <div style={styles.tableWrap}>
         {loading ? (
           <div style={styles.loadingWrap}>
             <div style={styles.spinner} />
-            <span style={{ color: "#64748B", marginLeft: 12 }}>
-              Loading player records…
-            </span>
+            <span style={{ color: "#64748B", marginLeft: 12 }}>Loading players…</span>
           </div>
         ) : players.length === 0 ? (
           <div style={styles.emptyState}>
             <div style={{ fontSize: 40 }}>🏏</div>
-            <div style={{ color: "#64748B", marginTop: 8, fontWeight: 600 }}>
+            <div style={{ color: "#0F172A", marginTop: 8, fontWeight: 700, fontSize: 16 }}>
               No registered players match the criteria
             </div>
+            {hasActiveFilters && (
+              <button onClick={clearAllFilters} style={{ ...styles.clearFiltersBtn, marginTop: 12 }}>
+                Clear All Filters
+              </button>
+            )}
           </div>
         ) : (
           <table style={styles.table}>
             <thead>
               <tr>
-                {[
-                  "ID",
-                  "Player",
-                  "Mobile",
-                  "DOB / Age",
-                  "Blood",
-                  "Profession",
-                  "Role",
-                  "Style",
-                  "Prev Team",
-                  "Points",
-                  "Status",
-                  "Registered",
-                  "Actions",
-                ].map((h) => (
-                  <th key={h} style={styles.th}>
-                    {h}
-                  </th>
-                ))}
+                <th style={{ ...styles.th, width: 50 }} onClick={() => handleSort("playerID")}>
+                  ID {sortField === "playerID" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={{ ...styles.th, minWidth: 180 }} onClick={() => handleSort("playerName")}>
+                  PLAYER {sortField === "playerName" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={styles.th}>MOBILE</th>
+                <th style={styles.th} onClick={() => handleSort("dateOfBirth")}>
+                  DOB / AGE {sortField === "dateOfBirth" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={styles.th}>PARENTS</th>
+                <th style={styles.th}>STANDARD</th>
+                <th style={styles.th} onClick={() => handleSort("playerType")}>
+                  ROLE {sortField === "playerType" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={styles.th}>STYLE</th>
+                <th style={styles.th}>PRACTICE</th>
+                <th style={styles.th}>PAYMENT</th>
+                <th style={styles.th} onClick={() => handleSort("status")}>
+                  STATUS {sortField === "status" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={styles.th} onClick={() => handleSort("createdAt")}>
+                  REGISTERED {sortField === "createdAt" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+                <th style={{ ...styles.th, textAlign: "center" }}>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -2252,8 +1700,8 @@ export default function PlayersAdminPage() {
                       <span style={styles.idNum}>#{p.playerID ?? "—"}</span>
                     </td>
 
-                    {/* Name & Avatar */}
-                    <td style={{ ...styles.td, minWidth: 170 }}>
+                    {/* PLAYER */}
+                    <td style={styles.td}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <Avatar
                           src={p.playerPhoto?.url}
@@ -2261,107 +1709,141 @@ export default function PlayersAdminPage() {
                           size={36}
                         />
                         <div>
-                          <div style={{ fontWeight: 600, color: "#0F172A" }}>
+                          <div style={{ fontWeight: 700, color: "#0F172A", fontSize: 13 }}>
                             {p.playerName}
                           </div>
-                          {p.tShirtNumber !== undefined && (
-                            <div style={{ fontSize: 11, color: "#64748B" }}>
-                              Jersey #{p.tShirtNumber}
-                            </div>
-                          )}
+                          <div style={{ fontSize: 11, color: "#64748B" }}>
+                            Jersey #{p.tShirtNumber ?? "—"} ({p.tShirtName || "—"})
+                          </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* Mobile */}
-                    <td style={styles.td}>{p.playerPhone}</td>
+                    {/* MOBILE */}
+                    <td style={{ ...styles.td, fontSize: 12, color: "#334155" }}>
+                      {p.playerPhone}
+                    </td>
 
-                    {/* DOB / Age */}
+                    {/* DOB / AGE */}
                     <td style={styles.td}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#0F172A" }}>
+                      <div style={{ fontWeight: 600, color: "#0F172A", fontSize: 12 }}>
                         {formatDate(p.dateOfBirth)}
                       </div>
                       <div style={{ fontSize: 11, color: "#64748B" }}>
-                        {age !== null ? `${age} yrs` : "Age N/A"}
+                        {age !== null ? `${age} yrs` : "—"}
                       </div>
                     </td>
 
-                    {/* Blood Group */}
+                    {/* PARENTS */}
+                    <td style={{ ...styles.td, fontSize: 11 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#334155", fontWeight: 600 }}>
+                        <span style={{ fontSize: 9, color: "#D97706" }}>●</span>
+                        <span>{p.fatherName || "—"}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, color: "#64748B" }}>
+                        <span style={{ fontSize: 9, color: "#EA580C" }}>●</span>
+                        <span>{p.motherName || "—"}</span>
+                      </div>
+                    </td>
+
+                    {/* STANDARD */}
                     <td style={styles.td}>
-                      <span style={{ fontWeight: 700, color: "#DC2626" }}>
-                        {p.bloodGroup || "—"}
+                      <span style={styles.stdBadge}>
+                        {p.profession === "Other" && p.professionOther
+                          ? p.professionOther
+                          : p.profession ? (p.profession.startsWith("Standard") ? `Std ${p.profession.replace("Standard", "").trim()}` : p.profession) : "—"}
                       </span>
                     </td>
 
-                    {/* Profession */}
-                    <td style={{ ...styles.td, maxWidth: 160 }}>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.profession === "Other" ? p.professionOther : p.profession}>
-                        {p.profession === "Other" && p.professionOther ? p.professionOther : p.profession || "—"}
-                      </div>
-                    </td>
-
-                    {/* Role */}
+                    {/* ROLE */}
                     <td style={styles.td}>
-                      <span style={styles.chip}>{p.playerType}</span>
+                      <span style={styles.roleBadge}>{p.playerType}</span>
                     </td>
 
-                    {/* Playing Style */}
-                    <td style={{ ...styles.td, fontSize: 12, maxWidth: 140 }}>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={(p.playingStyle || []).join(", ")}>
+                    {/* STYLE */}
+                    <td style={{ ...styles.td, fontSize: 11, maxWidth: 130 }}>
+                      <div
+                        style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                        title={(p.playingStyle || []).join(", ")}
+                      >
                         {(p.playingStyle || []).join(", ") || "—"}
                       </div>
                     </td>
 
-                    {/* Previous Team */}
-                    <td style={styles.td}>{p.previousTeam || "—"}</td>
-
-                    {/* Previous Points */}
-                    <td style={{ ...styles.td, fontWeight: 700, color: "#1E3A8A" }}>
-                      {p.previousPoints !== undefined && p.previousPoints !== null ? p.previousPoints : "—"}
+                    {/* PRACTICE */}
+                    <td style={{ ...styles.td, fontSize: 12, fontWeight: 600, color: "#0F172A" }}>
+                      {p.practice !== undefined && p.practice !== null ? `${p.practice}d` : "—"}
                     </td>
 
-                    {/* Status */}
+                    {/* PAYMENT */}
+                    <td style={styles.td}>
+                      <div style={{ fontWeight: 700, fontSize: 12, color: "#2563EB" }}>
+                        {p.paymentMethod || "Online"}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#94A3B8", fontFamily: "monospace" }}>
+                        {p.transactionId || "—"}
+                      </div>
+                    </td>
+
+                    {/* STATUS */}
                     <td style={styles.td}>
                       <Badge status={p.status} />
                     </td>
 
-                    {/* Registered Date */}
-                    <td style={{ ...styles.td, fontSize: 12, whiteSpace: "nowrap" }}>
-                      {p.createdAt
-                        ? new Date(p.createdAt).toLocaleDateString("en-IN")
-                        : "—"}
+                    {/* REGISTERED */}
+                    <td style={{ ...styles.td, fontSize: 11, color: "#64748B", whiteSpace: "nowrap" }}>
+                      {formatShortDate(p.createdAt)}
                     </td>
 
-                    {/* Actions */}
+                    {/* ACTIONS */}
                     <td style={styles.td} onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "center" }}>
+                        {/* Edit */}
                         <button
                           onClick={() => setEditingPlayer(p)}
                           title="Edit Player"
-                          style={{
-                            ...styles.quickBtn,
-                            background: "#EFF6FF",
-                            color: "#1E40AF",
-                            border: "1px solid #BFDBFE",
-                          }}
+                          style={{ ...styles.actionBtn, background: "#FFF7ED", color: "#EA580C", border: "1px solid #FFEDD5" }}
                         >
                           ✏️
                         </button>
-                        {STATUS_OPTIONS.filter((s) => s !== p.status).map((s) => (
-                          <button
-                            key={s}
-                            title={`Mark as ${s}`}
-                            onClick={() => updateStatus(p._id, s)}
-                            style={{
-                              ...styles.quickBtn,
-                              background: STATUS_COLORS[s].bg,
-                              color: STATUS_COLORS[s].text,
-                              border: `1px solid ${STATUS_COLORS[s].border}`,
-                            }}
-                          >
-                            {s === "approved" ? "✓" : s === "rejected" ? "✗" : "⏳"}
-                          </button>
-                        ))}
+                        {/* Delete */}
+                        <button
+                          onClick={() => deletePlayer(p._id, p.playerName)}
+                          title="Delete Player"
+                          style={{ ...styles.actionBtn, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FEE2E2" }}
+                        >
+                          🗑️
+                        </button>
+                        {/* Approve */}
+                        <button
+                          onClick={() => updateStatus(p._id, "approved")}
+                          title="Mark Approved"
+                          disabled={p.status === "approved"}
+                          style={{
+                            ...styles.actionBtn,
+                            background: p.status === "approved" ? "#F1F5F9" : "#ECFDF5",
+                            color: p.status === "approved" ? "#94A3B8" : "#059669",
+                            border: "1px solid #A7F3D0",
+                            cursor: p.status === "approved" ? "default" : "pointer",
+                          }}
+                        >
+                          ✓
+                        </button>
+                        {/* Reject */}
+                        <button
+                          onClick={() => updateStatus(p._id, "rejected")}
+                          title="Mark Rejected"
+                          disabled={p.status === "rejected"}
+                          style={{
+                            ...styles.actionBtn,
+                            background: p.status === "rejected" ? "#F1F5F9" : "#FEF2F2",
+                            color: p.status === "rejected" ? "#94A3B8" : "#DC2626",
+                            border: "1px solid #FECACA",
+                            cursor: p.status === "rejected" ? "default" : "pointer",
+                          }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -2372,55 +1854,80 @@ export default function PlayersAdminPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div style={styles.paginationBar}>
-          <span style={{ color: "#64748B", fontSize: 13 }}>
-            Showing {(page - 1) * limit + 1}–
-            {Math.min(page * limit, pagination.total)} of {pagination.total} registered players
-          </span>
-          <div style={{ display: "flex", gap: 6 }}>
-            <PageBtn
-              label="‹ Prev"
+      {/* Pagination Bar */}
+      <div style={styles.paginationBar}>
+        <span style={{ color: "#64748B", fontSize: 13 }}>
+          {pagination.total > 0
+            ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, pagination.total)} of ${pagination.total} registered players`
+            : "Showing 0 players"}
+        </span>
+        {pagination.totalPages > 1 && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              style={{ ...styles.pageBtn, opacity: page === 1 ? 0.4 : 1 }}
+            >
+              «
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={!pagination.hasPrev}
-              onClick={() => setPage((p) => p - 1)}
-            />
+              style={{ ...styles.pageBtn, opacity: !pagination.hasPrev ? 0.4 : 1 }}
+            >
+              ‹
+            </button>
             {Array.from({ length: Math.min(pagination.totalPages, 7) }, (_, i) => {
               const p = i + 1;
               return (
-                <PageBtn
+                <button
                   key={p}
-                  label={p}
-                  active={p === page}
                   onClick={() => setPage(p)}
-                />
+                  style={{
+                    ...styles.pageBtn,
+                    background: p === page ? "#1E3A8A" : "#fff",
+                    color: p === page ? "#fff" : "#334155",
+                    fontWeight: p === page ? 700 : 500,
+                  }}
+                >
+                  {p}
+                </button>
               );
             })}
-            <PageBtn
-              label="Next ›"
+            <button
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
               disabled={!pagination.hasNext}
-              onClick={() => setPage((p) => p + 1)}
-            />
+              style={{ ...styles.pageBtn, opacity: !pagination.hasNext ? 0.4 : 1 }}
+            >
+              ›
+            </button>
+            <button
+              onClick={() => setPage(pagination.totalPages)}
+              disabled={page === pagination.totalPages}
+              style={{ ...styles.pageBtn, opacity: page === pagination.totalPages ? 0.4 : 1 }}
+            >
+              »
+            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-/* ─── Sub-Components ────────────────────────────────────────── */
+/* ─── Modal Helpers ─────────────────────────────────────────── */
 function Section({ title, children }) {
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div style={{ marginBottom: 18 }}>
       <div
         style={{
           fontSize: 11,
-          fontWeight: 700,
-          color: "#94A3B8",
+          fontWeight: 800,
+          color: "#475569",
           textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: 8,
-          borderBottom: "1px solid #F1F5F9",
+          letterSpacing: "0.06em",
+          marginBottom: 10,
+          borderBottom: "1px solid #E2E8F0",
           paddingBottom: 4,
         }}
       >
@@ -2431,32 +1938,23 @@ function Section({ title, children }) {
   );
 }
 
-function Field({ label, value, mono, highlight }) {
+function ModalField({ label, value, mono, highlightGreen }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        marginBottom: 6,
-        alignItems: "flex-start",
-      }}
-    >
-      <span
-        style={{ fontSize: 12, color: "#64748B", minWidth: 120, flexShrink: 0 }}
-      >
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
         {label}
-      </span>
-      <span
+      </div>
+      <div
         style={{
           fontSize: 13,
-          color: highlight ? "#D97706" : "#0F172A",
           fontWeight: 600,
+          color: highlightGreen ? "#16A34A" : "#0F172A",
           fontFamily: mono ? "monospace" : "inherit",
-          wordBreak: "break-all",
+          wordBreak: "break-word",
         }}
       >
         {value || "—"}
-      </span>
+      </div>
     </div>
   );
 }
@@ -2469,8 +1967,8 @@ function ExportBtn({ label, onClick, loading, icon, color }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 7,
-        padding: "9px 18px",
+        gap: 6,
+        padding: "8px 16px",
         borderRadius: 8,
         border: "none",
         cursor: loading ? "not-allowed" : "pointer",
@@ -2479,8 +1977,7 @@ function ExportBtn({ label, onClick, loading, icon, color }) {
         fontWeight: 700,
         fontSize: 13,
         opacity: loading ? 0.7 : 1,
-        transition: "opacity 0.2s",
-        boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
       }}
     >
       <span>{icon}</span>
@@ -2489,107 +1986,403 @@ function ExportBtn({ label, onClick, loading, icon, color }) {
   );
 }
 
-function PageBtn({ label, onClick, disabled, active }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        minWidth: 34,
-        height: 34,
-        borderRadius: 6,
-        border: "1px solid #E2E8F0",
-        background: active ? "#1E3A8A" : disabled ? "#F1F5F9" : "#fff",
-        color: active ? "#fff" : disabled ? "#CBD5E1" : "#334155",
-        fontWeight: active ? 700 : 500,
-        fontSize: 13,
-        cursor: disabled ? "not-allowed" : "pointer",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-/* ─── Styles ────────────────────────────────────────────────── */
+/* ─── Clean Professional Styling Matching Screenshot ────────── */
 const styles = {
   page: {
     background: "#F8FAFC",
     minHeight: "100vh",
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
-    padding: "28px 32px",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    padding: "24px 32px",
+    color: "#0F172A",
   },
   pageHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 24,
-  },
-  pageTitle: { fontSize: 26, fontWeight: 800, color: "#0F172A", margin: 0 },
-  pageSubtitle: { fontSize: 14, color: "#64748B", margin: "4px 0 0" },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4,1fr)",
-    gap: 14,
     marginBottom: 20,
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  pageTitle: { fontSize: 24, fontWeight: 800, color: "#0F172A", margin: 0 },
+  pageSubtitle: { fontSize: 13, color: "#64748B", margin: "4px 0 0" },
+  refreshBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: "1px solid #CBD5E1",
+    background: "#fff",
+    color: "#334155",
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: "1px solid #E2E8F0",
+    background: "#fff",
+    color: "#475569",
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  statsContainer: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    marginBottom: 20,
+  },
+  statsRow6: {
+    display: "grid",
+    gridTemplateColumns: "repeat(6, 1fr)",
+    gap: 12,
+  },
+  statsRow2: {
+    display: "grid",
+    gridTemplateColumns: "1.2fr 1.2fr",
+    gap: 12,
   },
   statCard: {
     background: "#fff",
-    borderRadius: 12,
-    padding: "16px 20px",
+    borderRadius: 10,
+    padding: "14px 16px",
     display: "flex",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     border: "1px solid #E2E8F0",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     cursor: "pointer",
-    transition: "box-shadow 0.2s",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    transition: "transform 0.15s, box-shadow 0.15s",
   },
-  filterBar: {
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    background: "#F8FAFC",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 18,
+    flexShrink: 0,
+    border: "1px solid #F1F5F9",
+  },
+  statNumber: { fontSize: 20, fontWeight: 800, color: "#0F172A", lineHeight: 1.1 },
+  statLabel: { fontSize: 11, color: "#64748B", fontWeight: 500, marginTop: 2 },
+  filterBarContainer: {
+    background: "#fff",
+    borderRadius: 10,
+    padding: "12px 16px",
+    border: "1px solid #E2E8F0",
     display: "flex",
     gap: 10,
     marginBottom: 16,
-    flexWrap: "wrap",
     alignItems: "center",
+    flexWrap: "wrap",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
   },
   searchInput: {
-    flex: "1 1 260px",
-    padding: "9px 14px",
-    borderRadius: 8,
-    border: "1.5px solid #E2E8F0",
-    fontSize: 13,
-    outline: "none",
-    background: "#fff",
-    color: "#0F172A",
-  },
-  select: {
-    padding: "9px 14px",
-    borderRadius: 8,
-    border: "1.5px solid #E2E8F0",
-    fontSize: 13,
-    background: "#fff",
-    color: "#334155",
-    cursor: "pointer",
-  },
-  selectFull: {
     width: "100%",
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid #CBD5E1",
-    fontSize: 13,
-    background: "#fff",
-    color: "#0F172A",
-    outline: "none",
-  },
-  input: {
-    width: "100%",
-    padding: "8px 12px",
-    borderRadius: 8,
+    padding: "8px 30px 8px 12px",
+    borderRadius: 7,
     border: "1px solid #CBD5E1",
     fontSize: 13,
     outline: "none",
     color: "#0F172A",
     boxSizing: "border-box",
+  },
+  clearSearchBtn: {
+    position: "absolute",
+    right: 8,
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "transparent",
+    border: "none",
+    color: "#94A3B8",
+    cursor: "pointer",
+    fontSize: 13,
+  },
+  filterSelect: {
+    padding: "8px 12px",
+    borderRadius: 7,
+    border: "1px solid #CBD5E1",
+    fontSize: 13,
+    background: "#fff",
+    color: "#334155",
+    cursor: "pointer",
+    outline: "none",
+  },
+  clearFiltersBtn: {
+    padding: "8px 14px",
+    borderRadius: 7,
+    border: "1px solid #FECACA",
+    background: "#FEF2F2",
+    color: "#DC2626",
+    fontWeight: 600,
+    fontSize: 12,
+    cursor: "pointer",
+  },
+  tableWrap: {
+    background: "#fff",
+    borderRadius: 10,
+    border: "1px solid #E2E8F0",
+    overflow: "auto",
+    marginBottom: 16,
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+  },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  th: {
+    padding: "11px 14px",
+    background: "#FAFAFA",
+    color: "#64748B",
+    fontWeight: 700,
+    textAlign: "left",
+    fontSize: 11,
+    letterSpacing: "0.04em",
+    borderBottom: "1px solid #E2E8F0",
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+    userSelect: "none",
+  },
+  tr: {
+    cursor: "pointer",
+    transition: "background 0.12s",
+    borderBottom: "1px solid #F1F5F9",
+  },
+  td: {
+    padding: "10px 14px",
+    color: "#334155",
+    verticalAlign: "middle",
+  },
+  idNum: {
+    color: "#2563EB",
+    fontWeight: 700,
+    fontSize: 12,
+    fontFamily: "monospace",
+  },
+  stdBadge: {
+    background: "#EFF6FF",
+    color: "#1E40AF",
+    borderRadius: 6,
+    padding: "2px 8px",
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  roleBadge: {
+    background: "#F1F5F9",
+    color: "#475569",
+    borderRadius: 6,
+    padding: "2px 8px",
+    fontSize: 11,
+    fontWeight: 600,
+  },
+  actionBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    fontSize: 11,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    fontWeight: 700,
+    padding: 0,
+  },
+  paginationBar: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0 4px",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  pageBtn: {
+    minWidth: 32,
+    height: 32,
+    padding: "0 8px",
+    borderRadius: 6,
+    border: "1px solid #CBD5E1",
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  loadingWrap: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 60,
+  },
+  spinner: {
+    width: 26,
+    height: 26,
+    borderRadius: "50%",
+    border: "2.5px solid #E2E8F0",
+    borderTopColor: "#2563EB",
+    animation: "spin 0.8s linear infinite",
+  },
+  emptyState: { textAlign: "center", padding: "50px 20px" },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15,23,42,0.65)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+    padding: 16,
+    backdropFilter: "blur(4px)",
+  },
+  modal: {
+    background: "#fff",
+    borderRadius: 16,
+    width: "100%",
+    maxWidth: 780,
+    maxHeight: "92vh",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
+  },
+  modalHeader: {
+    padding: "16px 22px",
+    borderBottom: "1px solid #E2E8F0",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  editModalBtn: {
+    background: "#EFF6FF",
+    border: "1px solid #BFDBFE",
+    color: "#1E40AF",
+    borderRadius: 7,
+    padding: "6px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  deleteModalBtn: {
+    background: "#FEF2F2",
+    border: "1px solid #FECACA",
+    color: "#DC2626",
+    borderRadius: 7,
+    padding: "6px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  closeBtn: {
+    background: "#F1F5F9",
+    border: "none",
+    borderRadius: 7,
+    width: 30,
+    height: 30,
+    cursor: "pointer",
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: 700,
+  },
+  modalBody: { padding: 22, overflowY: "auto" },
+  twoCol: {
+    display: "grid",
+    gridTemplateColumns: "1.2fr 0.8fr",
+    gap: 20,
+  },
+  grid2Col: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "6px 14px",
+  },
+  imgLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: "#94A3B8",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    marginBottom: 6,
+  },
+  imgPlaceholder: {
+    height: 100,
+    background: "#F8FAFC",
+    borderRadius: 8,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#94A3B8",
+    border: "1px dashed #CBD5E1",
+    fontSize: 12,
+  },
+  zoomHint: {
+    position: "absolute",
+    bottom: 6,
+    right: 6,
+    background: "rgba(0,0,0,0.75)",
+    color: "#fff",
+    padding: "2px 6px",
+    borderRadius: 4,
+    fontSize: 10,
+    fontWeight: 600,
+  },
+  sideCard: {
+    background: "#fff",
+    border: "1px solid #E2E8F0",
+    borderRadius: 10,
+    padding: 12,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+  },
+  sideCardTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#334155",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  },
+  savePoolBtn: {
+    background: "#1E3A8A",
+    color: "#fff",
+    border: "none",
+    borderRadius: 6,
+    padding: "7px 14px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  confirmStatusBtn: {
+    width: "100%",
+    marginTop: 10,
+    background: "#10B981",
+    color: "#fff",
+    border: "none",
+    borderRadius: 6,
+    padding: "8px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 1px 3px rgba(16,185,129,0.3)",
+  },
+  input: {
+    width: "100%",
+    padding: "8px 12px",
+    borderRadius: 7,
+    border: "1px solid #CBD5E1",
+    fontSize: 13,
+    outline: "none",
+    color: "#0F172A",
+    boxSizing: "border-box",
+  },
+  selectFull: {
+    width: "100%",
+    padding: "8px 12px",
+    borderRadius: 7,
+    border: "1px solid #CBD5E1",
+    fontSize: 13,
+    background: "#fff",
+    color: "#0F172A",
+    outline: "none",
   },
   inputLabel: {
     display: "block",
@@ -2600,69 +2393,16 @@ const styles = {
     letterSpacing: "0.04em",
     marginBottom: 4,
   },
-  errText: {
-    display: "block",
-    fontSize: 11,
-    color: "#EF4444",
-    marginTop: 3,
-  },
-  clearBtn: {
-    padding: "9px 14px",
-    borderRadius: 8,
-    border: "1.5px solid #FECACA",
-    background: "#FEF2F2",
-    color: "#EF4444",
-    fontWeight: 600,
+  errText: { display: "block", fontSize: 11, color: "#EF4444", marginTop: 3 },
+  saveBtn: {
+    background: "#1E3A8A",
+    color: "#fff",
+    border: "none",
+    borderRadius: 7,
+    padding: "9px 18px",
+    fontWeight: 700,
     fontSize: 13,
     cursor: "pointer",
-  },
-  tableWrap: {
-    background: "#fff",
-    borderRadius: 12,
-    border: "1px solid #E2E8F0",
-    overflow: "auto",
-    marginBottom: 20,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-  },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
-  th: {
-    padding: "12px 14px",
-    background: "#F1F5F9",
-    color: "#475569",
-    fontWeight: 700,
-    textAlign: "left",
-    fontSize: 11,
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    borderBottom: "1px solid #E2E8F0",
-    whiteSpace: "nowrap",
-  },
-  tr: {
-    cursor: "pointer",
-    transition: "background 0.15s",
-  },
-  td: {
-    padding: "11px 14px",
-    borderBottom: "1px solid #F1F5F9",
-    color: "#334155",
-    verticalAlign: "middle",
-  },
-  idNum: {
-    background: "#EFF6FF",
-    color: "#2563EB",
-    borderRadius: 6,
-    padding: "2px 8px",
-    fontWeight: 700,
-    fontSize: 12,
-    fontFamily: "monospace",
-  },
-  chip: {
-    background: "#F1F5F9",
-    color: "#475569",
-    borderRadius: 6,
-    padding: "3px 8px",
-    fontSize: 12,
-    fontWeight: 600,
   },
   quickBtn: {
     padding: "4px 8px",
@@ -2672,143 +2412,17 @@ const styles = {
     fontWeight: 700,
     border: "none",
   },
-  paginationBar: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "0 4px",
-  },
-  loadingWrap: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 60,
-  },
-  spinner: {
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    border: "3px solid #E2E8F0",
-    borderTopColor: "#3B82F6",
-    animation: "spin 0.8s linear infinite",
-  },
-  emptyState: { textAlign: "center", padding: 60, fontSize: 15 },
   toast: {
     position: "fixed",
     bottom: 24,
     right: 24,
     color: "#fff",
-    padding: "12px 20px",
-    borderRadius: 10,
+    padding: "10px 18px",
+    borderRadius: 8,
     fontWeight: 600,
-    fontSize: 14,
+    fontSize: 13,
     zIndex: 9999,
     boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-    animation: "slideIn 0.3s ease",
-  },
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15,23,42,0.6)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-    padding: 20,
-    backdropFilter: "blur(4px)",
-  },
-  modal: {
-    background: "#fff",
-    borderRadius: 16,
-    width: "100%",
-    maxWidth: 860,
-    maxHeight: "92vh",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
-  },
-  modalHeader: {
-    padding: "18px 24px",
-    borderBottom: "1px solid #E2E8F0",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexShrink: 0,
-  },
-  closeBtn: {
-    background: "#F1F5F9",
-    border: "none",
-    borderRadius: 8,
-    width: 34,
-    height: 34,
-    cursor: "pointer",
-    fontSize: 14,
-    color: "#64748B",
-    fontWeight: 700,
-  },
-  modalBody: { padding: 24, overflowY: "auto" },
-  twoCol: {
-    display: "grid",
-    gridTemplateColumns: "1.1fr 0.9fr",
-    gap: 24,
-    marginBottom: 20,
-  },
-  imgLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    marginBottom: 8,
-  },
-  imgPlaceholder: {
-    height: 120,
-    background: "#F8FAFC",
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#94A3B8",
-    border: "1px dashed #CBD5E1",
-    fontSize: 12,
-  },
-  zoomHint: {
-    position: "absolute",
-    bottom: 8,
-    right: 8,
-    background: "rgba(0,0,0,0.7)",
-    color: "#fff",
-    padding: "3px 8px",
-    borderRadius: 6,
-    fontSize: 10,
-    fontWeight: 600,
-  },
-  statusRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-    padding: "16px 0 0",
-    borderTop: "1px solid #F1F5F9",
-  },
-  statusBtn: {
-    padding: "7px 16px",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 13,
-    transition: "all 0.15s",
-  },
-  saveBtn: {
-    marginLeft: "auto",
-    background: "#1E3A8A",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontWeight: 700,
-    fontSize: 13,
-    cursor: "pointer",
   },
   lightboxOverlay: {
     position: "fixed",
@@ -2826,7 +2440,6 @@ const styles = {
     maxHeight: "90vh",
     objectFit: "contain",
     borderRadius: 8,
-    boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
   },
   lightboxClose: {
     position: "absolute",
@@ -2836,9 +2449,9 @@ const styles = {
     color: "#fff",
     border: "none",
     borderRadius: "50%",
-    width: 44,
-    height: 44,
-    fontSize: 20,
+    width: 40,
+    height: 40,
+    fontSize: 18,
     cursor: "pointer",
     display: "flex",
     alignItems: "center",

@@ -33,7 +33,7 @@ export async function PATCH(request, { params }) {
           "fatherName motherName profession professionOther previousTeam playerAddress " +
           "previousPoints previousPerformance " +
           "playerPhoto.url playingStyle playerType playerPool playerCategory " +
-          "tShirtSize pantSize tShirtNumber tShirtName " +
+          "tShirtSize pantSize tShirtNumber tShirtName paymentMethod practice " +
           "paymentScreenshot.url transactionId status Age createdAt updatedAt",
       )
       .lean();
