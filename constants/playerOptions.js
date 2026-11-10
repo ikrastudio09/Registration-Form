@@ -82,9 +82,9 @@ export const PREVIOUS_TEAMS = [
 
 export const PLAYING_STYLES = [
   "Right Arm Batting",
-  "Right Arm Balling",
+  "Right Arm Bowling",
   "Left Arm Batting",
-  "Left Arm Balling",
+  "Left Arm Bowling",
 ];
 
 export const TSHIRT_SIZES = [
